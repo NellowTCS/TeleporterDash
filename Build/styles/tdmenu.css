@@ -1,0 +1,275 @@
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  background-color: var(--bg-dark);
+  color: white;
+  font-family: "Orbitron", sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.menu,
+.options-menu,
+.level-selector {
+  background-color: var(--bg-darker);
+  padding: calc(15px * var(--menu-scale));
+  border-radius: calc(12px * var(--menu-scale));
+  box-shadow: var(--shadow-glow);
+  text-align: center;
+  opacity: 1;
+  transition: transform var(--transition-speed) ease, opacity 0.5s ease-in-out;
+  visibility: visible;
+  transform-origin: center;
+}
+
+.menu,
+.options-menu {
+  width: calc(450px * var(--menu-scale));
+  max-width: 75vw;
+  transform: scale(var(--menu-scale));
+}
+
+.level-selector {
+  width: calc(1200px * var(--level-selector-scale)); /* Adjusted base width */
+  max-width: 100vw;
+  height: calc(
+    1000px * var(--level-selector-scale)
+  ); /* Increased base height */
+  max-height: 100vh; /* Increased for mobile */
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--level-selector-scale));
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(20px * var(--level-selector-scale)); /* Increased padding */
+}
+
+.built-in-levels,
+.online-levels {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.level-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  margin: calc(30px * var(--level-selector-scale)) 0;
+}
+
+h1 {
+  font-size: clamp(1.6rem, calc(1.8rem * var(--menu-scale)), 2.5rem);
+  margin: calc(12px * var(--menu-scale)) 0;
+  color: var(--primary-color);
+  text-shadow: var(--shadow-glow);
+}
+
+.level-selector h1 {
+  font-size: calc(2.5rem * var(--level-selector-scale) * var(--content-scale));
+}
+
+h2 {
+  font-size: clamp(0.9rem, calc(1rem * var(--menu-scale)), 1.8rem);
+  margin: calc(8px * var(--menu-scale)) 0;
+}
+
+h3 {
+  font-size: clamp(1rem, calc(1.3rem * var(--menu-scale)), 2rem);
+  margin: calc(10px * var(--menu-scale)) 0;
+  color: var(--primary-color);
+}
+
+button {
+  width: 100%;
+  margin: calc(10px * var(--menu-scale)) auto;
+  padding: calc(12px * var(--menu-scale));
+  font-size: clamp(0.9rem, calc(1rem * var(--menu-scale)), 1.8rem);
+  background: var(--gradient);
+  border: calc(2px * var(--menu-scale)) solid var(--primary-color);
+  border-radius: calc(10px * var(--menu-scale));
+  color: var(--bg-darker);
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
+  transition: var(--transition-speed);
+}
+
+button:hover {
+  background: linear-gradient(
+    45deg,
+    var(--secondary-color),
+    var(--primary-color)
+  );
+  transform: scale(1.05);
+}
+
+button:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.level-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: calc(13px * var(--level-selector-scale) * var(--content-scale));
+  width: 90%;
+  max-width: calc(90vw * var(--level-selector-scale));
+  margin: calc(25px * var(--level-selector-scale)) auto;
+}
+
+.level-navigation button {
+  width: 100%;
+  padding: calc(25px * var(--level-selector-scale) * var(--content-scale));
+  font-size: calc(2rem * var(--level-selector-scale) * var(--content-scale));
+  background: var(--gradient);
+  border: none;
+  border-radius: calc(
+    15px * var(--level-selector-scale) * var(--content-scale)
+  );
+  color: var(--bg-darker);
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  font-family: "Orbitron", sans-serif;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.level-navigation button:hover:not(:disabled) {
+  transform: scale(1.05);
+  background: linear-gradient(
+    45deg,
+    var(--secondary-color),
+    var(--primary-color)
+  );
+}
+
+.level-navigation button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.level-navigation button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #666;
+}
+
+.nav-button.prev::before {
+  content: "←";
+  margin-right: calc(10px * var(--level-selector-scale) * var(--content-scale));
+}
+
+.nav-button.next::after {
+  content: "→";
+  margin-left: calc(10px * var(--level-selector-scale) * var(--content-scale));
+}
+
+.level-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(10px * var(--level-selector-scale) * var(--content-scale));
+  margin-top: calc(20px * var(--level-selector-scale));
+  color: white;
+}
+
+.level-title {
+  font-size: calc(2rem * var(--level-selector-scale) * var(--content-scale));
+  margin: 0;
+  color: var(--primary-color);
+}
+
+.level-stats {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  font-size: calc(1.2rem * var(--level-selector-scale) * var(--content-scale));
+  color: #888;
+}
+
+.level-preview {
+  width: calc(40vw * var(--level-selector-scale) * var(--content-scale));
+  height: calc(30vw * var(--level-selector-scale) * var(--content-scale));
+  max-width: calc(500px * var(--content-scale));
+  max-height: calc(375px * var(--content-scale));
+  background-color: var(--bg-darkest);
+  border-radius: calc(
+    15px * var(--level-selector-scale) * var(--content-scale)
+  );
+  overflow: hidden;
+  margin: 0 auto;
+  box-shadow: var(--shadow-glow);
+  image-rendering: pixelated;
+}
+
+.completion {
+  height: calc(6px * var(--menu-scale));
+  background: #333;
+  border-radius: calc(3px * var(--menu-scale));
+  margin: calc(15px * var(--menu-scale)) auto;
+  width: 80%;
+  overflow: hidden;
+}
+
+.completion-fill {
+  height: 100%;
+  background: var(--gradient);
+  border-radius: calc(3px * var(--menu-scale));
+  width: 0%;
+  transition: width var(--transition-speed);
+}
+
+.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.fade-in {
+  opacity: 1;
+  visibility: visible;
+}
+
+.back-button {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: calc(25px * var(--level-selector-scale) * var(--content-scale))
+    calc(40px * var(--level-selector-scale) * var(--content-scale));
+  font-size: calc(2rem * var(--level-selector-scale) * var(--content-scale));
+}
+
+.error-message {
+  background-color: rgba(255, 0, 0, 0.1);
+  border: calc(1px * var(--menu-scale)) solid #ff0000;
+  padding: calc(8px * var(--menu-scale));
+  margin: calc(8px * var(--menu-scale)) 0;
+  border-radius: calc(4px * var(--menu-scale));
+  text-align: center;
+}
+
+.error-message button {
+  margin-top: calc(8px * var(--menu-scale));
+  padding: calc(4px * var(--menu-scale)) calc(12px * var(--menu-scale));
+  background-color: #ff0000;
+  color: white;
+  border: none;
+  border-radius: calc(2px * var(--menu-scale));
+  cursor: pointer;
+}
+
+.error-message button:hover {
+  background-color: #cc0000;
+}

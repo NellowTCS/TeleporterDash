@@ -1,0 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap");
+
+:root {
+  --primary-color: #0f9d58;
+  --secondary-color: #4285f4;
+  --bg-dark: #1a1a2e;
+  --bg-darker: #16213e;
+  --bg-darkest: #182138;
+  --gradient: linear-gradient(
+    45deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
+  --shadow-glow: 0 0 20px var(--primary-color);
+  --transition-speed: 0.3s;
+  --menu-scale: 1;
+  --level-selector-scale: 1;
+  --content-scale: 1; /* New variable for content scaling */
+  --text-color: #000000;
+}

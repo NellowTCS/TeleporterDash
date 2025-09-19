@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Teleporter Dash Level Creator</title>
+    <link rel="stylesheet" href="./styles/global.css" />
+    <link rel="stylesheet" href="./styles/leveleditor.css" />
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      eruda.init();
+    </script>
+  </head>
+  <body>
+    <h1 class="header">Teleporter Dash Level Creator</h1>
+    <div id="currentDraftIndicator">Current Draft: <span></span></div>
+    <div id="mainContainer">
+      <div id="leftPanel">
+        <div id="gridContainer">
+          <div id="grid"></div>
+        </div>
+        <h2 class="section-header">Drafts</h2>
+        <div id="draftsList"></div>
+      </div>
+      <div id="rightPanel">
+        <div id="editorControls">
+          <div class="control-group">
+            <label for="levelName">Level Name:</label>
+            <input type="text" id="levelName" placeholder="Enter level name" />
+          </div>
+          <div class="control-group">
+            <label for="authorName">Author:</label>
+            <input
+              type="text"
+              id="authorName"
+              placeholder="Enter author name"
+            />
+          </div>
+          <div class="control-group">
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty">
+              <option value="Easy">Easy</option>
+              <option value="Normal">Normal</option>
+              <option value="Hard">Hard</option>
+              <option value="Harder">Harder</option>
+              <option value="Expert">Expert</option>
+              <option value="Insane">Insane</option>
+              <option value="Extreme">Extreme</option>
+              <option value="Easy Demon">Easy Demon</option>
+              <option value="Medium Demon">Medium Demon</option>
+              <option value="Super Demon">Super Demon</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="musicSelect">Background Music:</label>
+            <select id="musicSelect">
+              <option value="level1.ogg">Stereo Madness</option>
+              <option value="level2.ogg">Back on Track</option>
+              <option value="level3.ogg">Polargeist</option>
+              <option value="level4.ogg">Dry Out</option>
+              <option value="level5.ogg">Base After Base</option>
+              <option value="custom">Custom Music...</option>
+            </select>
+            <input
+              type="file"
+              id="customMusicInput"
+              accept="audio/*"
+              style="display: none"
+            />
+            <button id="previewMusic">Preview Music</button>
+          </div>
+
+          <div class="control-group">
+            <label>Grid Size:</label>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <div>
+                <label for="gridWidth">Width:</label>
+                <input
+                  type="number"
+                  id="gridWidth"
+                  value="100"
+                  style="width: 70px"
+                />
+              </div>
+              <div>
+                <label for="gridHeight">Height:</label>
+                <input
+                  type="number"
+                  id="gridHeight"
+                  value="12"
+                  style="width: 70px"
+                />
+              </div>
+              <button
+                id="updateGridSize"
+                style="
+                  padding: 5px 10px;
+                  background: #4285f4;
+                  border: none;
+                  border-radius: 5px;
+                  color: white;
+                  cursor: pointer;
+                "
+              >
+                Update Grid
+              </button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>Tools:</label>
+            <div class="tool-group">
+              <button class="tool active" data-type="0">Empty</button>
+              <button class="tool" data-type="1">Platform</button>
+              <button class="tool" data-type="2">Spike</button>
+              <button class="tool" data-type="3">Teleporter</button>
+              <button class="tool" data-type="4">Finish</button>
+              <button class="tool" data-type="c">Color</button>
+            </div>
+          </div>
+
+          <div
+            class="control-group"
+            id="colorPickerGroup"
+            style="display: none"
+          >
+            <label>Section Color:</label>
+            <select id="colorPicker"></select>
+            <br />
+            <label>Block Color:</label>
+            <select id="blockColorPicker"></select>
+          </div>
+
+          <div class="control-group" id="rotationGroup" style="display: none">
+            <label>Rotation:</label>
+            <div class="rotation-controls">
+              <button id="rotateLeft">↺</button>
+              <span id="rotationDisplay">0°</span>
+              <button id="rotateRight">↻</button>
+            </div>
+          </div>
+
+          <div class="action-group">
+            <button id="saveDraftBtn">Save Draft</button>
+            <button id="testBtn">Test Level</button>
+            <button id="exportBtn">Export Level</button>
+            <button id="importBtn">Import Level</button>
+            <button id="clearBtn">Clear Grid</button>
+            <button id="backToMenuBtn" onclick="window.location.href='./index.html'">Back to Menu</button>
+          </div>
+
+          <textarea id="importArea" style="display: none"></textarea>
+        </div>
+      </div>
+    </div>
+    <audio id="musicPreview" src="./Sound/Level Soundtracks/"></audio>
+    <script src="https://cdn.jsdelivr.net/gh/dduponchel/jszip@issue477/dist/jszip.js"></script>
+    <script src="./src/leveleditor.js"></script>
+  </body>
+</html>

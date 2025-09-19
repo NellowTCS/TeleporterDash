@@ -1,0 +1,646 @@
+// Menu Navigation System
+async function transitionMenu(fromMenu, toMenu) {
+  return new Promise((resolve) => {
+    if (fromMenu) {
+      fromMenu.classList.add("fade-out");
+      setTimeout(() => {
+        fromMenu.style.display = "none";
+        if (toMenu) {
+          toMenu.style.display = "block";
+          setTimeout(() => {
+            toMenu.classList.remove("fade-out");
+            resolve();
+          }, 50);
+        } else {
+          resolve();
+        }
+      }, 500);
+    } else if (toMenu) {
+      toMenu.style.display = "block";
+      setTimeout(() => {
+        toMenu.classList.remove("fade-out");
+        resolve();
+      }, 50);
+    }
+  });
+}
+
+async function handleMenuTransition(from, to) {
+  const fromMenu = document.querySelector("." + from);
+  const toMenu = document.querySelector("." + to);
+
+  if (to === "built-in-levels") {
+    await loadBuiltInLevelRegistry();
+  } else if (to === "online-levels") {
+    await loadOnlineLevelRegistry();
+  }
+
+  await transitionMenu(fromMenu, toMenu);
+}
+
+// Audio Setup
+const menuMusic = document.getElementById("menu-music");
+menuMusic.loop = true;
+menuMusic.volume = 0.9;
+menuMusic.preload = "auto";
+
+window.addEventListener("click", () => menuMusic.play(), { once: true });
+
+let levelsLoaded = false;
+let cssLoaded = false;
+
+document.fonts.ready.then(() => {
+  cssLoaded = true;
+});
+
+// Navigation Functions
+function startGame() {
+  console.log(currentLevelType);
+  if (currentLevelType === "built-in" && window.builtInLevels) {
+    const level = window.builtInLevels[currentLevelIndex];
+    window.location.href = `gameloader.html?level=${level.number}`;
+  } else if (currentLevelType === "online" && window.downloadedLevels) {
+    const level = window.downloadedLevels[currentLevelIndex];
+    window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
+      level.filename
+    )}`;
+  }
+  transitionMenu(
+    document.querySelector(".menu"),
+    document.querySelector(".level-selector")
+  );
+}
+
+function openLevelEditor() {
+  window.location.href = "leveleditor.html";
+}
+
+function showCredits() {
+  alert(
+    "Credits to Etheblix for the Menu Music, Tranquill Teleportation!\nCredits to RobTopGames for the original game and music! \nCredits to ForeverBound, DJVI, and Step for the amazing original Geometry Dash music!"
+  );
+}
+
+function levelStore() {
+  window.location.href = "levelstore.html";
+}
+
+// Settings Functions
+function updateVolumeLabel() {
+  const volume = document.getElementById("volume-slider").value;
+  document.getElementById("volume-label").innerText = volume;
+  menuMusic.volume = volume / 100;
+}
+
+// Level System
+let currentLevelIndex = 0;
+let maxLevelIndex = 0;
+let loadingStarted = false;
+let currentLevelType = "built-in";
+
+let db;
+const DB_NAME = "TeleporterDashDB";
+const DB_VERSION = 2;
+const STORE_NAME = "downloadedLevels";
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = () => {
+      console.error("Failed to open database:", request.error);
+      reject(request.error);
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      console.log("Database opened successfully");
+      resolve(db);
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "filename" });
+        console.log("Object store created");
+      }
+      if (!db.objectStoreNames.contains("scores")) {
+        db.createObjectStore("scores");
+        console.log("Scores object store created");
+      }
+    };
+  });
+}
+
+async function getDownloadedLevels() {
+  if (!db) {
+    try {
+      await initDB();
+    } catch (error) {
+      console.error("Failed to initialize database:", error);
+      return [];
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction([STORE_NAME], "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        console.error("Error fetching downloaded levels:", request.error);
+        reject(request.error);
+      };
+    } catch (error) {
+      console.error("Error in transaction:", error);
+      reject(error);
+    }
+  });
+}
+
+const BUILT_IN_LEVELS = [
+  { filename: "level1.js", number: 1 },
+  { filename: "level2.js", number: 2 },
+  { filename: "level3.js", number: 3 },
+];
+
+async function scanForLevels() {
+  return BUILT_IN_LEVELS;
+}
+
+async function loadBuiltInLevelRegistry() {
+  loadingStarted = true;
+  currentLevelType = "built-in";
+  const levelSelector = document.querySelector(
+    ".built-in-levels .level-selector"
+  );
+  levelSelector.innerHTML = `
+        <h1>Select Level</h1>
+        <div class="level-display">
+            <div class="level-preview"></div>
+            <div class="level-info"></div>
+            <div class="level-navigation">
+                <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
+                <button onclick="startGame()">Play Level</button>
+                <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
+            </div>
+        </div>
+        <button class="back-button" onclick="handleMenuTransition('built-in-levels', 'menu')">Back to Menu</button>
+    `;
+
+  const levels = await scanForLevels();
+  window.builtInLevels = levels;
+  currentLevelIndex = 0;
+  maxLevelIndex = levels.length - 1;
+  await updateLevelDisplay();
+}
+
+async function loadOnlineLevelRegistry() {
+  currentLevelType = "online";
+  const levelSelector = document.querySelector(
+    ".online-levels .level-selector"
+  );
+  levelSelector.innerHTML = `
+        <h1>Downloaded Levels</h1>
+        <div class="level-display">
+            <div class="level-preview"></div>
+            <div class="level-info"></div>
+            <div class="level-navigation">
+                <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
+                <button onclick="startGame()">Play Level</button>
+                <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
+            </div>
+        </div>
+        <button class="back-button" onclick="handleMenuTransition('online-levels', 'menu')">Back to Menu</button>
+    `;
+
+  try {
+    const levels = await getDownloadedLevels();
+    if (levels.length === 0) {
+      const levelDisplay = document.querySelector(
+        ".online-levels .level-display"
+      );
+      levelDisplay.innerHTML =
+        '<p class="no-levels">No downloaded levels found.<br>Visit the Level Store to download levels!</p>';
+      return;
+    }
+    window.downloadedLevels = levels;
+    currentLevelIndex = 0;
+    maxLevelIndex = levels.length - 1;
+    await updateLevelDisplay();
+  } catch (error) {
+    console.error("Error loading downloaded levels:", error);
+    const levelDisplay = document.querySelector(
+      ".online-levels .level-display"
+    );
+    levelDisplay.innerHTML =
+      '<p class="error-message">Error loading levels.<br>Please try again later.</p>';
+  }
+}
+
+async function handleLevelNavigation(direction) {
+  const newIndex = currentLevelIndex + direction;
+
+  if (newIndex >= 0 && newIndex <= maxLevelIndex) {
+    currentLevelIndex = newIndex;
+    await updateLevelDisplay();
+  }
+}
+
+const TILE_COLORS = {
+  "-1": "#ff6b6b",
+  "-2": "#4ecdc4",
+  "-3": "#45b7d1",
+  "-4": "#96ceb4",
+  "-5": "#ff9f1c",
+  "-6": "#ffbe0b",
+  "-7": "#ff006e",
+  "-8": "#8338ec",
+  "-9": "#3a86ff",
+  0: "#000000",
+  1: "#45b7d1",
+  2: "#ff6b6b",
+  3: "#9932CC",
+  4: "#00ff00",
+};
+
+function parseBlockProperties(block) {
+  if (typeof block !== "string") {
+    return { type: block, color: null, rotation: 0 };
+  }
+
+  const props = block.split("/");
+  const type = parseInt(props[0]);
+  let color = null;
+  let rotation = 0;
+
+  props.slice(1).forEach((prop) => {
+    if (prop.startsWith("-")) {
+      color = TILE_COLORS[prop];
+    } else if (prop.startsWith("@")) {
+      rotation = parseInt(prop.substring(1));
+    }
+  });
+
+  return { type, color, rotation };
+}
+
+function drawSpike(ctx, x, y, size, color = "#ff6b6b", rotation = 0) {
+  ctx.save();
+  ctx.translate(x + size / 2, y + size / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+
+  ctx.beginPath();
+  ctx.moveTo(-size / 2, size / 2);
+  ctx.lineTo(0, -size / 2);
+  ctx.lineTo(size / 2, size / 2);
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawTeleporter(ctx, x, y, size, color = "#9932CC") {
+  const radius = size / 3;
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawFinishLine(ctx, x, y, size) {
+  ctx.fillStyle = "#00ff00";
+  ctx.fillRect(x, y, size / 4, size);
+}
+
+function generateLevelPreview(matrix) {
+  const scale =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--level-selector-scale"
+      )
+    ) || 1;
+  const contentScale =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--content-scale"
+      )
+    ) || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.min(
+    (40 * scale * contentScale * window.innerWidth) / 100,
+    500 * contentScale
+  );
+  canvas.height = Math.min(
+    (30 * scale * contentScale * window.innerWidth) / 100,
+    375 * contentScale
+  );
+  const ctx = canvas.getContext("2d");
+
+  const previewRows = Math.min(20, matrix.length);
+  const previewCols = Math.min(17, matrix[0].length);
+
+  const tileSize = Math.min(
+    canvas.width / previewCols,
+    canvas.height / previewRows
+  );
+
+  const offsetX = (canvas.width - previewCols * tileSize) / 2;
+  const offsetY = (canvas.height - previewRows * tileSize) / 2;
+
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < previewRows; y++) {
+    for (let x = 0; x < previewCols; x++) {
+      const block = matrix[y][x];
+      const { type, color, rotation } = parseBlockProperties(block);
+      const tileX = offsetX + x * tileSize;
+      const tileY = offsetY + y * tileSize;
+
+      if (type === 0) continue;
+
+      switch (type) {
+        case 1:
+          ctx.fillStyle = color || TILE_COLORS["1"];
+          ctx.fillRect(tileX, tileY, tileSize, tileSize);
+          break;
+        case 2:
+          drawSpike(
+            ctx,
+            tileX,
+            tileY,
+            tileSize,
+            color || TILE_COLORS["2"],
+            rotation
+          );
+          break;
+        case 3:
+          drawTeleporter(
+            ctx,
+            tileX,
+            tileY,
+            tileSize,
+            color || TILE_COLORS["3"]
+          );
+          break;
+        case 4:
+          drawFinishLine(ctx, tileX, tileY, tileSize);
+          break;
+      }
+    }
+  }
+
+  return canvas;
+}
+
+function drawLevelPreview(level) {
+  if (!level || !level.matrix) {
+    console.error("Invalid level data for preview:", level);
+    return null;
+  }
+
+  try {
+    return generateLevelPreview(level.matrix);
+  } catch (error) {
+    console.error("Error generating level preview:", error);
+    return null;
+  }
+}
+
+async function updateLevelDisplay() {
+  const container = document.querySelector(
+    currentLevelType === "built-in"
+      ? ".built-in-levels .level-selector"
+      : ".online-levels .level-selector"
+  );
+  if (!container) return;
+
+  const levelDisplay = container.querySelector(".level-display");
+  if (!levelDisplay) {
+    container.innerHTML = `
+            <h1>${
+              currentLevelType === "built-in"
+                ? "Select Level"
+                : "Downloaded Levels"
+            }</h1>
+            <div class="level-display">
+                <div class="level-preview"></div>
+                <div class="level-info"></div>
+                <div class="level-navigation">
+                    <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
+                    <button onclick="startGame()">Play Level</button>
+                    <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
+                </div>
+            </div>
+            <button class="back-button" onclick="handleMenuTransition('${
+              currentLevelType === "built-in"
+                ? "built-in-levels"
+                : "online-levels"
+            }', 'menu')">Back to Menu</button>
+        `;
+  }
+
+  try {
+    let levelData;
+    if (currentLevelType === "built-in") {
+      const script = document.createElement("script");
+      script.src = `Levels/${BUILT_IN_LEVELS[currentLevelIndex].filename}`;
+
+      await new Promise((resolve, reject) => {
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+
+      levelData = window.levelData;
+      document.head.removeChild(script);
+      window.levelData = null;
+    } else {
+      levelData = window.downloadedLevels[currentLevelIndex];
+    }
+
+    if (!levelData) throw new Error("No level data found");
+
+    const preview = container.querySelector(".level-preview");
+    preview.innerHTML = "";
+    const previewCanvas = drawLevelPreview(levelData);
+    if (previewCanvas) {
+      preview.appendChild(previewCanvas);
+    }
+
+    const info = container.querySelector(".level-info");
+    info.innerHTML = "";
+
+    const title = document.createElement("h3");
+    title.className = "level-title";
+    title.textContent =
+      levelData.title ||
+      (currentLevelType === "built-in"
+        ? `Level ${BUILT_IN_LEVELS[currentLevelIndex].number}`
+        : levelData.filename.replace(".js", ""));
+
+    const stats = document.createElement("div");
+    stats.className = "level-stats";
+    stats.innerHTML = `
+            <span>Difficulty: ${levelData.difficulty || "Normal"}</span>
+            <span>Author: ${levelData.author || "Unknown"}</span>
+        `;
+
+    info.appendChild(title);
+    info.appendChild(stats);
+
+    const prevButton = container.querySelector(".nav-button.prev");
+    const nextButton = container.querySelector(".nav-button.next");
+
+    if (prevButton) prevButton.disabled = currentLevelIndex === 0;
+    if (nextButton) nextButton.disabled = currentLevelIndex === maxLevelIndex;
+  } catch (error) {
+    console.error("Error updating level display:", error);
+    showLoadingError(
+      "Failed to load level data",
+      currentLevelType === "built-in"
+    );
+  }
+}
+
+// Error Handling
+function showError(message, container) {
+  const errorElement = document.createElement("div");
+  errorElement.className = "error-message";
+  errorElement.innerHTML = `
+        <p>${message}</p>
+        <button onclick="this.parentElement.remove()">OK</button>
+    `;
+  container.appendChild(errorElement);
+}
+
+function showLoadingError(message, isBuiltIn = false) {
+  const container = document.querySelector(
+    isBuiltIn
+      ? ".built-in-levels #current-level"
+      : ".online-levels #current-level"
+  );
+  if (container) {
+    container.innerHTML = `<p>${message}</p>`;
+  }
+}
+
+// Resizing Function
+function updateMenuScale() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const zoomLevel = window.devicePixelRatio || 1;
+
+  // Menu scaling (unchanged)
+  const menuElement = document.querySelector(".menu");
+  if (menuElement) {
+    const baseMenuWidth = 450;
+    const baseMenuHeight = 300;
+    const menuWidthScale = ((width / zoomLevel) * 0.7) / baseMenuWidth;
+    const menuHeightScale = ((height / zoomLevel) * 0.7) / baseMenuHeight;
+    let menuScale = Math.min(menuWidthScale, menuHeightScale);
+    menuScale = Math.max(0.6, Math.min(menuScale, 1.2));
+    document.documentElement.style.setProperty("--menu-scale", menuScale);
+  }
+
+  // Level selector scaling
+  const levelSelectorElement = document.querySelector(".level-selector");
+  if (levelSelectorElement) {
+    const baseLevelWidth = 1200;
+    const baseLevelHeight = 1000; // Increased for taller mobile
+    const levelWidthScale = ((width / zoomLevel) * 1.0) / baseLevelWidth;
+    const levelHeightScale = ((height / zoomLevel) * 1.0) / baseLevelHeight;
+    let levelScale;
+    if (width < 768) {
+      // Mobile
+      const levelHeightScale = ((height / zoomLevel) * 1.0) / baseLevelHeight; // 100% height ratio
+      levelScale = Math.min(levelWidthScale, levelHeightScale);
+      levelScale = Math.max(1.8, Math.min(levelScale, 2.5)); // Large mobile size
+      levelSelectorElement.style.maxHeight = "100vh"; // Full height on mobile
+    } else {
+      // Desktop
+      const levelHeightScale = ((height / zoomLevel) * 0.9) / baseLevelHeight; // Reduced to 40% height ratio
+      levelScale = Math.min(levelWidthScale, levelHeightScale);
+      levelScale = Math.max(1.0, Math.min(levelScale, 1.6)); // Desktop range
+      levelSelectorElement.style.maxHeight = `${Math.min(
+        baseLevelHeight * levelScale,
+        height * 0.9
+      )}px`; // Smaller desktop height
+    }
+
+    // Adjust for overflow
+    const scaledWidth = baseLevelWidth * levelScale;
+    const scaledHeight = baseLevelHeight * levelScale;
+    if (scaledWidth > width || scaledHeight > height) {
+      const overflowScale = Math.min(
+        width / scaledWidth,
+        height / scaledHeight
+      );
+      levelScale *= overflowScale;
+    }
+
+    document.documentElement.style.setProperty(
+      "--level-selector-scale",
+      levelScale
+    );
+
+    // Adjust content scale: smaller on desktop, normal on mobile
+    const contentScale = width >= 768 ? 0.6 : 1.0; // Reduce content size on desktop
+    document.documentElement.style.setProperty("--content-scale", contentScale);
+  }
+}
+
+// Initial scale setup
+window.addEventListener("DOMContentLoaded", () => {
+  setTimeout(updateMenuScale, 100);
+});
+
+// Update scale on resize with debounce
+let resizeTimeout;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(updateMenuScale, 100);
+});
+
+// Clear Data Function
+function clearData() {
+  if (
+    confirm(
+      "Are you sure you want to clear all data? This action cannot be undone."
+    )
+  ) {
+    localStorage.clear();
+    indexedDB
+      .databases()
+      .then((databases) => {
+        databases.forEach((db) => {
+          indexedDB.deleteDatabase(db.name);
+        });
+      })
+      .catch((error) => {
+        console.error("Error deleting databases:", error);
+      });
+    if (
+      confirm(
+        "Do you want to leave the page? (Clicking No/Cancel will reload the page)"
+      )
+    ) {
+      window.location.href = "https://github.com/NellowTCS/TeleporterDash/";
+    } else {
+      location.reload();
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initDB);

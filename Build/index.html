@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    <title>Teleporter Dash</title>
+    <link rel="stylesheet" href="./styles/global.css" />
+    <link rel="stylesheet" href="./styles/tdmenu.css" />
+  </head>
+
+  <body>
+    <audio id="menu-music" loop preload="auto">
+      <source src="Sound/Basic Soundeffects/menutd.ogg" type="audio/ogg" />
+    </audio>
+
+    <div class="menu">
+      <h1>Teleporter Dash</h1>
+      <button onclick="handleMenuTransition('menu', 'built-in-levels')">
+        Levels
+      </button>
+      <button onclick="handleMenuTransition('menu', 'online-levels')">
+        Online Levels
+      </button>
+      <button onclick="window.location.href='levelstore.html'">
+        Level Store
+      </button>
+      <button onclick="window.location.href='leveleditor.html'">
+        Level Creator
+      </button>
+      <button onclick="handleMenuTransition('menu', 'options-menu')">
+        Settings
+      </button>
+      <button onclick="showCredits();">Credits</button>
+    </div>
+
+    <div class="built-in-levels" style="display: none">
+      <div class="level-selector">
+        <!-- Will be populated by loadBuiltInLevelRegistry() -->
+      </div>
+    </div>
+
+    <div class="online-levels" style="display: none">
+      <div class="level-selector">
+        <!-- Will be populated by loadOnlineLevelRegistry() -->
+      </div>
+    </div>
+
+    <div class="options-menu" style="display: none">
+      <h1>Settings</h1>
+      <div
+        style="border-top: 1px solid #ccc; width: 100%; margin: 0 auto"
+      ></div>
+      <h3>Volume Control</h3>
+      <input
+        type="range"
+        id="volume-slider"
+        min="0"
+        max="100"
+        value="50"
+        oninput="updateVolumeLabel()"
+      />
+      <p>Volume: <span id="volume-label">50</span>%</p>
+      <div style="border-top: 1px solid #ccc; width: 70%; margin: 0 auto"></div>
+      <h3>Clear Data</h3>
+      <button onclick="clearData();">Clear All Data</button>
+      <div style="border-top: 1px solid #ccc; width: 70%; margin: 0 auto"></div>
+      <button onclick="handleMenuTransition('options-menu', 'menu')">
+        Back
+      </button>
+    </div>
+
+    <script src="./src/tdmenu.js"></script>
+  </body>
+</html>

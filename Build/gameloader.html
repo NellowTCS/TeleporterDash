@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Loading Level...</title>
+    <link rel="stylesheet" href="./styles/global.css">
+    <link rel="stylesheet" href="./styles/gameloader.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    <script src="./src/scoreManager.js"></script>
+    <script src="./src/audioManager.js"></script>
+    <script src="./src/levelLoader.js"></script>
+</head>
+
+<body>
+    <div id="gameContainer">
+        <div id="cameraContainer">
+           
+            <div id="player"></div>
+            <div id="ground"></div>
+        </div>
+        <div id="progressContainer">
+            Completion: <span id="progressText">0%</span>
+            <div id="progressBar">
+                <div id="progressFill"></div>
+            </div>
+        </div>
+        <button id="muteButton">🔇 </button>
+        <button id="pauseButton">⏸</button>
+        <div id="timer" style="position: fixed; top: 10px; left: 230px; background: rgba(0, 0, 0, 0.3); color: #00ff00; padding: 10px; border-radius: 5px; font-family: 'Orbitron', sans-serif; font-size: 24px; z-index: 1000;">0:00</div>
+        <div id="gameOver">
+            Game Over!
+            <br>
+            <button id="restartBtn">Try Again</button>
+            <button onclick="window.location.href='./index.html'"
+                style="background: #4285F4; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;">Back
+                to Menu</button>
+        </div>
+        <div id="settingsMenu"
+            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); padding: 20px; border-radius: 10px; color: white; text-align: center; z-index: 1000;">
+            <h2>Level Settings</h2>
+
+            <!-- Volume Control with tooltip -->
+            <div style="margin: 20px 0;" title="Adjust the game's overall volume">
+                <label for="volumeSlider">Volume: </label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="90" style="width: 200px;">
+                <span id="volumeValue">90%</span>
+            </div>
+
+            <!-- Practice Mode with tooltip -->
+            <div style="margin: 20px 0;" title="In practice mode, you won't die and can practice the level freely">
+                <label for="practiceMode">Practice Mode: </label>
+                <input type="checkbox" id="practiceMode" name="practiceMode">
+            </div>
+
+            <!-- Custom Controls with tooltip -->
+            <div style="margin: 20px 0;" title="Choose your preferred control method">
+                <label for="controlMethod">Control Method: </label>
+                <select id="controlMethod" style="padding: 5px; margin-left: 10px;">
+                    <option value="space">Spacebar</option>
+                    <option value="click">Mouse Click</option>
+                    <option value="both" selected>Both</option>
+                </select>
+            </div>
+
+            <!-- Auto-Restart with tooltip -->
+            <div style="margin: 20px 0;" title="Automatically restart the level when you die">
+                <label for="autoRestart">Auto-Restart: </label>
+                <input type="checkbox" id="autoRestart">
+            </div>
+
+            <!-- Speed Control with tooltip -->
+            <div style="margin: 20px 0;" title="Adjust the game speed (Practice Mode only)">
+                <label for="gameSpeed">Game Speed: </label>
+                <select id="gameSpeed" style="padding: 5px; margin-left: 10px;">
+                    <option value="0.5">0.5x (Slow)</option>
+                    <option value="1" selected>1x (Normal)</option>
+                    <option value="1.5">1.5x (Fast)</option>
+                    <option value="2">2x (Very Fast)</option>
+                </select>
+            </div>
+
+            <!-- Visual Effects with tooltip -->
+            <div style="margin: 20px 0;" title="Toggle particle effects and visual enhancements">
+                <label for="visualEffects">Visual Effects: </label>
+                <input type="checkbox" id="visualEffects" checked>
+            </div>
+
+            <!-- Loading animation -->
+            <div id="loadingAnimation" style="display: none; margin: 20px 0;">
+                <div
+                    style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #00ff00; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;">
+                </div>
+                <p>Preparing Level...</p>
+            </div>
+
+            <button id="startLevelBtn"
+                style="background: #00ff00; color: black; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                Start Level
+            </button>
+        </div>
+        <div id="pauseMenu"
+            style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.475); padding: 20px; border-radius: 10px; color: white; text-align: center; z-index: 2000;">
+            <h2>Game Paused</h2>
+            <button id="resumeBtn"
+                style="background: #00ff00; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; cursor: pointer;">Resume</button>
+            <button id="restartFromPauseBtn"
+                style="background: #4285F4; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; cursor: pointer;">Restart</button>
+            <button onclick="window.location.href='./index.html'"
+                style="background: #ff4444; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; cursor: pointer;">Exit
+                to Menu</button>
+        </div>
+    </div>
+    <div id="levelComplete">
+        Level Complete!
+        <br>
+        <button id="nextLevelBtn"
+            style="background: #4285F4; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; cursor: pointer;">Next
+            Level</button>
+        <button onclick="window.location.href='./index.html'"
+            style="background: #4285F4; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; cursor: pointer;">Back
+            to Menu</button>
+    </div>
+
+    <script src="./src/gameloader.js"></script>
+</body>
+
+</html>

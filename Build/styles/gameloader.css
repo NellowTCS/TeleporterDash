@@ -1,0 +1,294 @@
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #1a1a1a;
+  font-family: "Orbitron", sans-serif;
+  transition: background-color 1s ease;
+  touch-action: manipulation;
+}
+
+#gameContainer {
+  position: relative;
+  width: calc(100% - 80px);
+  max-width: 1000px;
+  height: calc(100% - 60px);
+  min-height: 460px;
+  margin: 0 auto;
+  overflow: hidden;
+  perspective: 1000px;
+  transition: none;
+  --from-color: #000000;
+  --to-color: #000000;
+  background-color: var(--from-color);
+  will-change: background-color;
+}
+
+#cameraContainer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.1s ease-out;
+}
+
+#player {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: #1ce92d;
+  bottom: 50px;
+  left: 100px;
+  z-index: 1000;
+  transform-origin: center;
+}
+
+.platform {
+  position: absolute;
+  background: #4287f5;
+  bottom: 50px;
+}
+
+.spike {
+  position: absolute;
+  bottom: 50px;
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-bottom: 30px solid #ff0000;
+}
+
+#ground {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 50px;
+  background: #333;
+}
+
+#score {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: white;
+  font-size: 24px;
+}
+
+#gameOver {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 48px;
+  display: none;
+  text-align: center;
+}
+
+#restartBtn {
+  padding: 10px 20px;
+  font-size: 18px;
+  margin-top: 20px;
+  cursor: pointer;
+  background: #00ff00;
+  border: none;
+  border-radius: 5px;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #00ff00;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.teleporter {
+  position: absolute;
+  width: 30px;
+  height: 60px;
+  background: linear-gradient(to right, #ff00ff, #8c00ff);
+  bottom: 50px;
+  border-radius: 15px;
+  animation: glow 1s infinite alternate;
+}
+
+.teleporter::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 12px solid white;
+  pointer-events: none;
+}
+
+.teleporter[data-rotation="90"]::after {
+  border: none;
+  border-bottom: 12px solid white;
+  border-right: 8px solid transparent;
+  border-left: 8px solid transparent;
+}
+
+.teleporter[data-rotation="180"]::after {
+  border-top: none;
+  border-bottom: 12px solid white;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+
+.teleporter[data-rotation="270"]::after {
+  border: none;
+  border-bottom: 12px solid white;
+  border-right: 8px solid transparent;
+  border-left: 8px solid transparent;
+}
+
+/* Rotation classes for teleporter */
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px #ff00ff;
+  }
+
+  to {
+    box-shadow: 0 0 20px #ff00ff;
+  }
+}
+
+#levelComplete {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  transform-style: preserve-3d;
+  perspective: none;
+  background: rgba(0, 0, 0, 0.475);
+  color: #00ff00;
+  font-size: 48px;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  z-index: 9999;
+  display: none;
+}
+
+#progressContainer {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 200px;
+  color: white;
+  font-size: 18px;
+  text-align: left;
+  z-index: 1001;
+}
+
+#progressBar {
+  width: 100%;
+  height: 10px;
+  background-color: rgba(51, 51, 51, 0.5);
+  border-radius: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff00, #4287f5);
+  width: 0%;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+/* Add tooltip styling */
+[title] {
+  position: relative;
+  cursor: help;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.475);
+  color: white;
+  border-radius: 5px;
+  font-size: 14px;
+  white-space: nowrap;
+  z-index: 1001;
+}
+
+/* Loading animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add better touch controls and responsive design */
+@media (max-width: 768px) {
+  #gameContainer {
+    width: 100%;
+    height: 300px;
+  }
+}
+
+#muteButton {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  font-size: 20px;
+  z-index: 1001;
+}
+
+#pauseButton {
+  position: fixed;
+  top: 20px;
+  right: 70px;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  font-size: 20px;
+  z-index: 1001;
+}
+
+#pauseMenu {
+  z-index: 2000;
+}
+
+@keyframes backgroundTransition {
+  0% {
+    background-color: var(--from-color);
+  }
+
+  100% {
+    background-color: var(--to-color);
+  }
+}
