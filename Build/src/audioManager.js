@@ -6,9 +6,12 @@ const AudioManager = {
   jumpSound: null,
   deathSound: null,
   completionSound: null,
-  isMuted: false,
   lastMusicTime: 0,
   isInitialized: false,
+
+  get isMuted() {
+    return GameState.getState().isMuted;
+  },
 
   // // Function to detect if the browser is Safari
   isSafari() {

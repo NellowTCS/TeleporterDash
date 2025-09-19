@@ -251,8 +251,10 @@ const LevelLoader = {
     }
 
     // For built-in levels, first row is already the color row
-    levelMatrix = data.matrix.slice(1);
-    levelColorRow = data.matrix[0]; // Store color row separately
+    GameState.setState({
+        levelMatrix: data.matrix.slice(1),
+        levelColorRow: data.matrix[0]
+    });
 
     // Process colors
     colorSteps.length = 0;
@@ -299,9 +301,11 @@ const LevelLoader = {
     }
 
     // Set other level data
-    levelTitle = data.title || "Untitled Level";
-    levelAuthor = data.author || "Unknown Author";
-    levelDifficulty = data.difficulty || "Normal";
+    GameState.setState({
+        levelTitle: data.title || "Untitled Level",
+        levelAuthor: data.author || "Unknown Author",
+        levelDifficulty: data.difficulty || "Normal"
+    });
 
     // Handle music data
     if (data.musicValue === "custom" && data.musicData) {
@@ -311,7 +315,7 @@ const LevelLoader = {
       levelMusic = URL.createObjectURL(blob);
       console.log("LevelMusic: ", levelMusic);
     } else if (isPracticeMode) {
-      levelMusic = "./Sound/Basic Soundeffects/practicetd.ogg";
+      GameState.setState({ levelMusic: "./public/Sound/Basic Soundeffects/practicetd.ogg" });
       console.log("LevelMusic: ", levelMusic);
     } else if (
       data.musicValue &&
@@ -320,7 +324,7 @@ const LevelLoader = {
       levelMusic = `${data.musicValue}`;
       console.log("LevelMusic: ", levelMusic);
     } else if (data.musicValue) {
-      levelMusic = `../Sound/Level Soundtracks/${data.musicValue}`;
+      GameState.setState({ levelMusic: `./public/Sound/Level Soundtracks/${data.musicValue}` });
       console.log("LevelMusic: ", levelMusic);
     } else if (data.musicData) {
       levelMusic = `${data.musicData}`;
@@ -356,13 +360,19 @@ const LevelLoader = {
     calculateTotalBlocks();
 
     // Reset game state
-    gameSpeed = 4;
-    currentColumn = 0;
-    playerVelocity = 0;
-    rotation = 0;
-    isOnPlatform = false;
-    doubleJumpAvailable = true;
-    passedBlocks = 0;
+    GameState.setState({
+        gameSpeed: 4,
+        currentColumn: 0,
+        playerVelocity: 0,
+        rotation: 0,
+        isOnPlatform: false,
+        doubleJumpAvailable: true,
+        passedBlocks: 0,
+        isLevelStarted: false,
+        isGameOver: false,
+        isPaused: false,
+        isLevelComplete: false
+    });
 
     // Reset progress bar
     progressFill.style.width = "0%";
@@ -380,14 +390,16 @@ const LevelLoader = {
     const gameSpeedSelect = document.getElementById("gameSpeed");
     if (gameSpeedSelect) {
       gameSpeedSelect.disabled = false;
-      if (SettingsManager.current.gameSpeed) {
-        gameSpeed = SettingsManager.current.gameSpeed;
-        gameSpeedSelect.value = gameSpeed.toString();
+      const savedSpeed = SettingsManager.current.gameSpeed;
+      if (savedSpeed) {
+        GameState.setState({ gameSpeed: savedSpeed });
+        gameSpeedSelect.value = savedSpeed.toString();
       }
     }
 
     // Switch to practice mode music
-    if (isLevelStarted && !isPaused && !isGameOver && !isLevelComplete) {
+    const state = GameState.getState();
+    if (state.isLevelStarted && !state.isPaused && !state.isGameOver && !state.isLevelComplete) {
       try {
         AudioManager.switchTracks(
           AudioManager.practiceMusic,

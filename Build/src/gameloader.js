@@ -1,18 +1,18 @@
-// Score tracking variables
-let jumpCount = 0;
-let deathCount = 0;
-let startTime = 0;
-let currentTime = 0;
+// Get reference to game container
+const gameContainer = document.getElementById("gameContainer");
+const player = document.getElementById("player");
+
+// Timer variable (needs to be accessible for clearing)
 let levelTimer = null;
-let levelTime = 0; // Track elapsed time in seconds
-let levelMatrix = [0]; // Stores the level layout
-let levelColorRow = []; // Stores the color information
-let levelTitle; // Stores the level name
-let levelMusic; // Stores the path to level music
-let levelId; // Stores the unique level identifier
-let isLevelStarted = false;
-let isPracticeMode = false;
-let gameContainer = document.getElementById("gameContainer"); // Game container element
+
+// Extract levelId from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+let levelId = null;
+if (urlParams.has("level")) {
+  levelId = urlParams.get("level");
+} else if (urlParams.has("levelFile")) {
+  levelId = urlParams.get("levelFile");
+}
 
 // Color mapping for blocks
 const COLOR_MAP = {
@@ -38,10 +38,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     console.log("ScoreManager initialized successfully");
 
-    // Only update UI if initialization succeeded
-    if (levelId) {
-      ScoreManager.updateScoreboardUI(levelId);
-    }
+    // Don't automatically show scoreboard on page load
+    // Only show when specifically requested (e.g., level complete)
 
     // Then proceed with level loading
     console.log("Starting level initialization...");
@@ -62,21 +60,14 @@ const CONSTANTS = {
   INITIAL_SPACE: 740, // Initial empty space before level starts (IMP)
 };
 
-// // Game state variables
-let isJumping = false; // Whether player is currently jumping
-let gravity = 2000; //! Rate at which player falls (pixels/second²) - adjusted for deltaTime
-let jumpForce = -800; //! Initial upward velocity when jumping (pixels/second) - adjusted for deltaTime
-let playerVelocity = 0; // Current vertical velocity of player (pixels/second)
-let gameSpeed = 4; //! Base movement speed of the level
-let isGameOver = false; // Whether the game is in a "game over" state
-let rotation = 0; // Current rotation of the player sprite
+// Physics constants
+const gravity = 2000; // Rate at which player falls (pixels/second²)
+const jumpForce = -800; // Initial upward velocity when jumping (pixels/second)
+
+// Game elements
 let obstacles = []; // Array of all active obstacles
-let animationFrameId = null; // ID of the current animation frame
-let isLevelComplete = false; // Whether the level has been completed
-let currentColumn = 0; // Current column position in the level
-let doubleJumpAvailable = true; // Whether double jump is available
 let particles = []; // Array of active particle effects
-let isOnPlatform = false; // Whether player is standing on a platform
+let animationFrameId = null; // ID of the current animation frame
 
 // DeltaTime variables for frame-rate independence
 let lastFrameTime = performance.now(); // Timestamp of the last frame
@@ -87,7 +78,7 @@ const MAX_DELTA_TIME = 1 / 30; // Cap deltaTime to prevent large jumps
 // Progress tracking variables
 const progressText = document.getElementById("progressText");
 const progressFill = document.getElementById("progressFill");
-const totalColumns = levelMatrix[0].length;
+let totalColumns = 0; // Will be set when levelMatrix is loaded
 
 // Global jump buffer for keyboard/mouse inputs
 let jumpBufferTime = 0; // milliseconds
@@ -124,60 +115,21 @@ const DB_NAME = "TeleporterDashDB";
 const STORE_NAME = "downloadedLevels";
 const DB_VERSION = 2;
 
-// Game state object for managing complex state
-const gameState = {
+// Initialize GameState with default values
+GameState.setState({
   isJumping: false,
   isPracticeMode: false,
   isGameOver: false,
+  isLevelComplete: false,
   currentColumn: 0,
-};
-
-// ===== Level Settings =====
-// Settings manager for persistent game settings
-const SettingsManager = {
-  current: {
-    volume: 90,
-    practiceMode: false,
-    controlMethod: "both",
-    isMuted: false,
-    autoRestartEnabled: false,
-    gameSpeed: 4,
-    visualEffects: true,
-  },
-  save() {
-    localStorage.setItem("gameSettings", JSON.stringify(this.current));
-  },
-  load() {
-    const savedSettings = localStorage.getItem("gameSettings");
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      this.current = { ...this.current, ...parsed };
-
-      // Apply loaded settings
-      isMuted = this.current.isMuted;
-      isPracticeMode = this.current.practiceMode;
-      autoRestartEnabled = this.current.autoRestartEnabled;
-      gameSpeed = this.current.gameSpeed;
-
-      // Apply volume to all audio elements
-      [
-        AudioManager.backgroundMusic,
-        AudioManager.practiceMusic,
-        AudioManager.jumpSound,
-        AudioManager.deathSound,
-        AudioManager.completionSound,
-      ].forEach((audio) => {
-        if (audio) {
-          audio.volume = this.current.volume / 100;
-          audio.muted = this.current.isMuted;
-        }
-      });
-
-      // Apply control method
-      setupControls(this.current.controlMethod);
-    }
-  },
-};
+  playerVelocity: 0,
+  rotation: 0,
+  doubleJumpAvailable: true,
+  isOnPlatform: false,
+  jumpCount: 0,
+  deathCount: 0,
+  currentTime: 0
+});
 
 /**
  * Toggles game state (mute or pause)
@@ -187,15 +139,17 @@ function toggleGameState(action) {
   if (action === "mute") {
     AudioManager.toggleMute();
   } else if (action === "pause") {
-    if (isGameOver || isLevelComplete || !isLevelStarted) return;
+    const state = GameState.getState();
+    if (state.isGameOver || state.isLevelComplete || !state.isLevelStarted) return;
 
-    isPaused = !isPaused;
-    pauseMenu.style.display = isPaused ? "block" : "none";
+    const newPauseState = !state.isPaused;
+    GameState.setState({ isPaused: newPauseState });
+    pauseMenu.style.display = newPauseState ? "block" : "none";
 
-    const currentMusic = isPracticeMode
+    const currentMusic = state.isPracticeMode
       ? AudioManager.practiceMusic
       : AudioManager.backgroundMusic;
-    if (isPaused) {
+    if (newPauseState) {
       AudioManager.pause(currentMusic);
     } else {
       // Resume from current position if not muted
@@ -461,10 +415,11 @@ function handlePlatformCollision(playerRect, platform) {
 
   // First, check for side collision - this takes priority
   // If we have any meaningful horizontal collision and we're not jumping, it's death
+  const state = GameState.getState();
   if (
     horizontalCollision > 0.2 && // Significant horizontal collision
     verticalOverlap > 5 && // Some vertical overlap
-    !isJumping && // Not in a jump
+    !state.isJumping && // Not in a jump
     Math.abs(playerBottom - (platformBottom + 40)) > 15
   ) {
     // Not very close to top
@@ -473,17 +428,19 @@ function handlePlatformCollision(playerRect, platform) {
 
   // Only then check for safe landing
   if (
-    playerVelocity > 0 && // Moving down
+    state.playerVelocity > 0 && // Moving down
     Math.abs(playerBottom - (platformBottom + 40)) < 10 && // Very close to top
     horizontalCollision > 0.3
   ) {
     // Enough horizontal overlap for landing
 
     // Safe landing
-    isOnPlatform = true;
-    isJumping = false;
-    doubleJumpAvailable = true;
-    playerVelocity = 0;
+    GameState.setState({
+      isOnPlatform: true,
+      isJumping: false,
+      doubleJumpAvailable: true,
+      playerVelocity: 0
+    });
     player.style.bottom = platformBottom + 45 + "px";
     return "safe";
   }
@@ -496,7 +453,10 @@ function handlePlatformCollision(playerRect, platform) {
  * Called when player reaches the finish line
  */
 function levelComplete() {
-  isLevelComplete = true;
+  const state = GameState.getState();
+  GameState.setState({
+    isLevelComplete: true
+  });
   clearInterval(levelTimer);
 
   // Save score using the filename instead of levelId
@@ -504,10 +464,10 @@ function levelComplete() {
   const onlineparam = urlParams.get("online");
   if (onlineparam) {
     const filename = urlParams.get("levelFile");
-    ScoreManager.addRun(filename, levelTime, jumpCount, deathCount);
+    ScoreManager.addRun(filename, state.currentTime, state.jumpCount, state.deathCount);
   } else {
     const filename = urlParams.get("level");
-    ScoreManager.addRun("Level " + filename, levelTime, jumpCount, deathCount);
+    ScoreManager.addRun("Level " + filename, state.currentTime, state.jumpCount, state.deathCount);
   }
 
   if (levelCompleteElement) {
@@ -520,7 +480,7 @@ function levelComplete() {
     AudioManager.completionSound.currentTime = 0;
     AudioManager.completionSound.play();
     AudioManager.fadeOut(
-      isPracticeMode ? AudioManager.practiceMusic : AudioManager.backgroundMusic
+      state.isPracticeMode ? AudioManager.practiceMusic : AudioManager.backgroundMusic
     );
   }
 
@@ -576,12 +536,15 @@ function updateGame() {
   );
   lastFrameTime = currentFrameTime;
 
+  // Get current state
+  const state = GameState.getState();
+  
   // Don't update if game isn't in active state
-  if (!isLevelStarted || isGameOver || isLevelComplete) {
+  if (!state.isLevelStarted || state.isGameOver || state.isLevelComplete) {
     return;
   }
 
-  if (isPaused) {
+  if (state.isPaused) {
     requestAnimationFrame(updateGame);
     return;
   }
@@ -591,7 +554,7 @@ function updateGame() {
 
   // Apply game speed to obstacle movement (frame-rate independent)
   const baseSpeed = 240; // pixels per second (DO NOT ADJUST FOR DELTATIME, THIS IS WHAT CAUSED IT TO NOT WORK WHEN I DID IT)
-  const currentSpeed = isPracticeMode
+  const currentSpeed = state.isPracticeMode
     ? baseSpeed * (SettingsManager.current.gameSpeed / 4)
     : baseSpeed;
   const frameSpeed = currentSpeed * deltaTime; // Convert to pixels per frame
@@ -599,32 +562,40 @@ function updateGame() {
   // Create new obstacles when needed
   // Only creates obstacles when there's enough space from the last one
   if (
-    currentColumn < levelMatrix[0].length &&
+    state.currentColumn < levelMatrix[0].length &&
     (obstacles.length === 0 ||
       gameContainer.offsetWidth -
         obstacles[obstacles.length - 1]?.element.offsetLeft >
         CONSTANTS.COLUMN_WIDTH)
   ) {
     for (let row = 0; row < levelMatrix.length; row++) {
-      createObstacleFromMatrix(levelMatrix[row][currentColumn], row);
+      createObstacleFromMatrix(levelMatrix[row][state.currentColumn], row);
     }
-    currentColumn++;
+    GameState.setState({
+      currentColumn: state.currentColumn + 1
+    });
 
     // Only update progress when new obstacles are created
     updateProgress();
   }
 
   // Player physics calculations (frame-rate independent)
-  playerVelocity += gravity * deltaTime; // Apply gravity based on time elapsed
+  const newVelocity = state.playerVelocity + gravity * deltaTime;
   const currentBottom = parseInt(window.getComputedStyle(player).bottom);
-  let newBottom = currentBottom - playerVelocity * deltaTime; // Move based on velocity and time
+  let newBottom = currentBottom - newVelocity * deltaTime;
 
   // Check ground collision with proper constants
   if (newBottom <= CONSTANTS.GROUND_HEIGHT) {
     newBottom = CONSTANTS.GROUND_HEIGHT;
-    isJumping = false;
-    doubleJumpAvailable = true;
-    playerVelocity = 0;
+    GameState.setState({
+      isJumping: false,
+      doubleJumpAvailable: true,
+      playerVelocity: 0
+    });
+  } else {
+    GameState.setState({
+      playerVelocity: newVelocity
+    });
   }
 
   // Update player position
@@ -633,13 +604,16 @@ function updateGame() {
 
   // Rotate player during jump (frame-rate independent)
   const rotationSpeed = 360; // degrees per second
-  if (isJumping) {
-    rotation += rotationSpeed * deltaTime;
-    player.style.transform = `rotate(${rotation}deg)`;
-  } else {
-    rotation = 0;
-    player.style.transform = `rotate(${rotation}deg)`;
+  if (state.isJumping) {
+    GameState.setState({
+      rotation: state.rotation + rotationSpeed * deltaTime
+    });
+  } else if (state.rotation !== 0) {
+    GameState.setState({
+      rotation: 0
+    });
   }
+  player.style.transform = `rotate(${state.rotation}deg)`;
 
   // Update obstacles with optimization
   const playerRect = player.getBoundingClientRect();
@@ -664,8 +638,7 @@ function updateGame() {
       if (collision) {
         if (obstacle.type === "finish") {
           levelComplete();
-        } else if (obstacle.type === "spike" && !isPracticeMode) {
-          // Check practice mode
+        } else if (obstacle.type === "spike" && !state.isPracticeMode) {
           gameOver();
         } else if (obstacle.type === "teleporter") {
           const rotation = parseInt(
@@ -702,7 +675,9 @@ function updateGame() {
             player.style.bottom = parseInt(player.style.bottom) + dy + "px";
           }
 
-          playerVelocity = 0;
+          GameState.setState({
+            playerVelocity: 0
+          });
           createParticles("#ff00ff");
           setTimeout(() => createParticles("#ff00ff"), 100);
         } else if (obstacle.type === "platform") {
@@ -710,8 +685,7 @@ function updateGame() {
             playerRect,
             obstacle.element
           );
-          if (platformCollision === "death" && !isPracticeMode) {
-            // Check practice mode
+          if (platformCollision === "death" && !state.isPracticeMode) {
             gameOver();
           }
         }
@@ -742,7 +716,7 @@ function updateGame() {
   }
 
   // Continue game loop if game is still active
-  if (!isGameOver && !isLevelComplete) {
+  if (!state.isGameOver && !state.isLevelComplete) {
     requestAnimationFrame(updateGame);
   }
 
@@ -767,64 +741,6 @@ function updateGame() {
 }
 
 /**
- * Handles collision detection between player and obstacles
- * @param {HTMLElement} player - The player element
- * @param {HTMLElement} obstacle - The obstacle element to check collision with
- * @returns {boolean} - True if collision detected, false otherwise
- */
-function checkCollision(player, obstacle) {
-  if (obstacle.classList.contains("empty-block")) return false;
-
-  // Get raw positions without camera influence
-  const playerBottom = parseInt(player.style.bottom);
-  const playerLeft = parseInt(player.style.left);
-  const obstacleBottom = parseInt(obstacle.style.bottom);
-  const obstacleLeft = parseInt(obstacle.style.left);
-
-  const tolerance = 5; // Small overlap allowance for smoother collision
-  const playerSize = 30; // Player width/height
-  const obstacleSize = obstacle.type === "platform" ? 45 : 30;
-
-  // Get obstacle rotation
-  let rotation = 0;
-  const transform = obstacle.style.transform;
-  if (transform) {
-    const match = transform.match(/rotate\((\d+)deg\)/);
-    if (match) {
-      rotation = parseInt(match[1]);
-    }
-  }
-
-  // Adjust collision box based on rotation for spikes
-  let adjustedObstacleBottom = obstacleBottom;
-  let adjustedObstacleLeft = obstacleLeft;
-
-  if (obstacle.type === "spike") {
-    switch (rotation) {
-      case 90: // Pointing left
-        adjustedObstacleLeft += obstacleSize / 2;
-        break;
-      case 180: // Pointing up
-        adjustedObstacleBottom += obstacleSize / 2;
-        break;
-      case 270: // Pointing right
-        adjustedObstacleLeft -= obstacleSize / 2;
-        break;
-      default: // Pointing down or no rotation
-        adjustedObstacleBottom -= obstacleSize / 2;
-    }
-  }
-
-  // Check for overlap in both x and y directions
-  return !(
-    playerLeft + playerSize - tolerance < adjustedObstacleLeft ||
-    playerLeft + tolerance > adjustedObstacleLeft + obstacleSize ||
-    playerBottom + playerSize - tolerance < adjustedObstacleBottom ||
-    playerBottom + tolerance > adjustedObstacleBottom + obstacleSize
-  );
-}
-
-/**
  * Handles specific collision logic for platforms
  * Includes landing detection and side collision
  */
@@ -841,17 +757,21 @@ function handlePlatformCollision(playerRect, platform) {
     Math.max(playerLeft, platformLeft);
   const playerWidth = 30;
 
+  const state = GameState.getState();
+
   if (
-    playerVelocity > 0 && // Moving downward
+    state.playerVelocity > 0 && // Moving downward
     playerBottom <= platformBottom + 45 && // Platform height is 45
     playerBottom >= platformBottom &&
     horizontalOverlap > playerWidth * 0.3
   ) {
     // Safe landing
-    isOnPlatform = true;
-    isJumping = false;
-    doubleJumpAvailable = true;
-    playerVelocity = 0;
+    GameState.setState({
+      isOnPlatform: true,
+      isJumping: false,
+      doubleJumpAvailable: true,
+      playerVelocity: 0
+    });
     player.style.bottom = platformBottom + 45 + "px";
     return "safe";
   } else {
@@ -867,9 +787,9 @@ function handlePlatformCollision(playerRect, platform) {
       horizontalOverlap > playerWidth * 0.4 && // Significant horizontal overlap
       verticalOverlap > 10 && // Significant vertical overlap
       playerBottom < platformBottom + 40 && // Not near the top
-      Math.abs(playerCenterX - platformCenterX) < 20
+      Math.abs(playerCenterX - platformCenterX) < 20 && // Close to platform center
+      !state.isJumping // Not in a jump
     ) {
-      // Close to platform center
       return "death";
     }
   }
@@ -881,10 +801,13 @@ function handlePlatformCollision(playerRect, platform) {
  * Called when player hits spikes or collides with obstacles
  */
 async function gameOver() {
-  if (!isPracticeMode) {
+  const state = GameState.getState();
+  if (!state.isPracticeMode) {
     // Only trigger game over if NOT in practice mode
-    isGameOver = true;
-    deathCount++; // Track deaths
+    GameState.setState({
+      isGameOver: true,
+      deathCount: state.deathCount + 1
+    });
 
     // Stop all music immediately
     await Promise.all([
@@ -937,7 +860,7 @@ async function gameOver() {
     // Fade out music
     if (!AudioManager.isMuted) {
       AudioManager.fadeOut(
-        isPracticeMode
+        state.isPracticeMode
           ? AudioManager.practiceMusic
           : AudioManager.backgroundMusic
       );
@@ -947,8 +870,10 @@ async function gameOver() {
   } else {
     // In practice mode, just reset position but keep playing
     player.style.bottom = "50px";
-    playerVelocity = 0;
-    rotation = 0;
+    GameState.setState({
+      playerVelocity: 0,
+      rotation: 0
+    });
     createParticles("#ff00ff"); // Different color particles for practice mode respawn
   }
 }
@@ -965,17 +890,22 @@ async function restartGame() {
   }
 
   // Reset pause state
-  isPaused = false;
+  GameState.setState({ isPaused: false });
   pauseMenu.style.display = "none";
 
   // Reset game state
-  isGameOver = false;
-  isLevelComplete = false;
-  currentColumn = 0;
-  gameSpeed = 4;
-  playerVelocity = 0;
-  rotation = 0;
-  isOnPlatform = false;
+  GameState.setState({
+    isGameOver: false,
+    isLevelComplete: false,
+    currentColumn: 0,
+    gameSpeed: 4,
+    playerVelocity: 0,
+    rotation: 0,
+    isOnPlatform: false,
+    isJumping: false,
+    doubleJumpAvailable: true,
+    passedBlocks: 0
+  });
 
   // Reset UI elements
   if (levelCompleteElement) {
@@ -1003,10 +933,6 @@ async function restartGame() {
 
   cleanupParticles();
 
-  // Reset jump state
-  doubleJumpAvailable = true;
-  passedBlocks = 0;
-
   // Reset progress bar
   progressFill.style.width = "0%";
   progressText.textContent = "0%";
@@ -1018,12 +944,13 @@ async function restartGame() {
   ]);
 
   // Start the correct music if not muted
-  if (!AudioManager.isMuted && !isPaused) {
+  const currentState = GameState.getState();
+  if (!AudioManager.isMuted && !currentState.isPaused) {
     try {
-      const musicToPlay = isPracticeMode
+      const musicToPlay = currentState.isPracticeMode
         ? AudioManager.practiceMusic
         : AudioManager.backgroundMusic;
-      const musicToPause = isPracticeMode
+      const musicToPause = currentState.isPracticeMode
         ? AudioManager.backgroundMusic
         : AudioManager.practiceMusic;
       await AudioManager.switchTracks(musicToPlay, musicToPause);
@@ -1037,8 +964,6 @@ async function restartGame() {
 
   // Reset player position
   player.style.bottom = `${CONSTANTS.GROUND_HEIGHT}px`;
-  playerVelocity = 0;
-  rotation = 0;
   player.style.transform = "rotate(0deg)";
 
   // Start game loop
@@ -1055,23 +980,28 @@ restartBtn.addEventListener("click", restartGame);
  */
 function jump(e) {
   const currentTime = Date.now();
+  const state = GameState.getState();
+  
   // Prevent double jump based on global jump buffer
   if (currentTime - lastJumpPressTime < jumpBufferTime) {
     return;
   }
+
   if (
-    !isGameOver &&
-    ((!isJumping && !isOnPlatform) ||
-      (doubleJumpAvailable && currentTime - lastJumpPressTime > jumpBufferTime))
+    !state.isGameOver &&
+    ((!state.isJumping && !state.isOnPlatform) ||
+      (state.doubleJumpAvailable && currentTime - lastJumpPressTime > jumpBufferTime))
   ) {
-    if (isJumping) {
-      doubleJumpAvailable = false;
-    }
-    isJumping = true;
-    isOnPlatform = false;
-    jumpCount++;
-    playerVelocity = jumpForce;
+    GameState.setState({
+      isJumping: true,
+      isOnPlatform: false,
+      doubleJumpAvailable: state.isJumping ? false : state.doubleJumpAvailable,
+      jumpCount: state.jumpCount + 1,
+      playerVelocity: jumpForce
+    });
+
     lastJumpPressTime = currentTime;
+
     if (!AudioManager.isMuted && AudioManager.jumpSound?.readyState === 4) {
       AudioManager.jumpSound.currentTime = 0;
       AudioManager.jumpSound
@@ -1129,17 +1059,23 @@ function updateProgress() {
   const currentTime = Date.now();
   if (currentTime - lastProgressUpdate < progressUpdateInterval) return;
 
+  const state = GameState.getState();
+  
+  // Set totalColumns if not already set
+  if (totalColumns === 0) {
+    totalColumns = levelMatrix[0].length;
+  }
+  
   // Calculate progress based on current column position
-  const totalColumns = levelMatrix[0].length;
   const delayColumns = 3; // Creates a 2-second delay for smoother progress
-  const adjustedColumn = Math.max(0, currentColumn - delayColumns);
+  const adjustedColumn = Math.max(0, state.currentColumn - delayColumns);
 
   // Calculate progress with finer granularity
   const progress = (adjustedColumn / totalColumns) * 100;
   const clampedProgress = Math.min(Math.round(progress), 99); // Cap at 99% until complete
 
   // Only show 100% when level is actually complete
-  const finalProgress = isLevelComplete
+  const finalProgress = state.isLevelComplete
     ? 100
     : progress >= 98
     ? 99 // Force 99% when near the end
@@ -1204,7 +1140,8 @@ function calculateTotalBlocks() {
  * Used during level completion and game over
  */
 async function fadeOutMusic() {
-  const currentMusic = isPracticeMode
+  const state = GameState.getState();
+  const currentMusic = state.isPracticeMode
     ? AudioManager.practiceMusic
     : AudioManager.backgroundMusic;
   while (currentMusic.volume > 0.02) {
@@ -1245,7 +1182,7 @@ async function initializeLevel() {
 
   if (practiceModeCheckbox) {
     practiceModeCheckbox.checked = SettingsManager.current.practiceMode;
-    isPracticeMode = SettingsManager.current.practiceMode;
+    GameState.setState({ isPracticeMode: SettingsManager.current.practiceMode });
   }
 
   if (autoRestartCheckbox) {
@@ -1468,20 +1405,23 @@ const COLOR_TRANSITION = {
 
 // Update the updateBackgroundColor function
 function updateBackgroundColor() {
+  // Get current state
+  const state = GameState.getState();
+  
   // Basic validation
-  if (!levelMatrix || !levelMatrix.length || !levelColorRow) return;
+  if (!levelMatrix || !levelMatrix.length || !state.levelColorRow || !state.levelColorRow.length) return;
 
   try {
     // Account for initial empty space using CONSTANTS
     const delayColumns = Math.floor(
       CONSTANTS.INITIAL_SPACE / CONSTANTS.COLUMN_WIDTH
     );
-    const adjustedColumn = Math.max(0, currentColumn - delayColumns);
+    const adjustedColumn = Math.max(0, state.currentColumn - delayColumns);
 
     // Get current and next codes from the stored color row
-    const currentRawCode = levelColorRow[adjustedColumn];
+    const currentRawCode = state.levelColorRow[adjustedColumn];
     const nextRawCode =
-      levelColorRow[Math.min(adjustedColumn + 1, levelColorRow.length - 1)];
+      state.levelColorRow[Math.min(adjustedColumn + 1, state.levelColorRow.length - 1)];
 
     // Don't force negative numbers, allow 0 for black
     const currentCode = `${extractColorCode(currentRawCode) || 0}`;
@@ -1512,7 +1452,9 @@ function updateBackgroundColor() {
 
     // Calculate transition
     const rowSpacing = 45; // Match platform block width
-    const factor = (player.x % rowSpacing) / rowSpacing;
+    const playerElement = document.getElementById("player");
+    const playerX = playerElement ? parseInt(playerElement.style.left) || 100 : 100;
+    const factor = (playerX % rowSpacing) / rowSpacing;
     const newColor = interpolateColor(
       currentDarkerColor,
       nextDarkerColor,
@@ -1776,12 +1718,14 @@ if (startLevelBtn) {
       settingsMenu.style.display = "none";
 
       // Reset game state before starting
-      gameSpeed = 4;
-      currentColumn = 0;
-      playerVelocity = 0;
-      rotation = 0;
-      isOnPlatform = false;
-      doubleJumpAvailable = true;
+      GameState.setState({
+        gameSpeed: 4,
+        currentColumn: 0,
+        playerVelocity: 0,
+        rotation: 0,
+        isOnPlatform: false,
+        doubleJumpAvailable: true
+      });
 
       // Setup audio and wait for it to be ready
       await AudioManager.setup(levelMusic);
