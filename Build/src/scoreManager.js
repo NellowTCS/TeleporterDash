@@ -1,5 +1,5 @@
 // Score Manager for Teleporter Dash
-const ScoreManager = {
+export const ScoreManager = {
   // Default scores structure using Map
   scores: {
     levels: new Map(),

@@ -541,7 +541,7 @@ async function testLevel() {
     await store.put(testData);
     // Open the test page in a new window
     window.open(
-      "../Levels/gameloader.html?test=true&levelId=currentTest",
+      "./gameloader.html?test=true&levelId=currentTest",
       "_blank"
     );
   } catch (error) {
@@ -1249,10 +1249,10 @@ musicSelect.addEventListener("change", function () {
 document.getElementById("backToMenuBtn").addEventListener("click", () => {
   if (hasMatrixChanged) {
     if (confirm("You have unsaved changes. Are you sure you want to leave?")) {
-      window.location.href = "../TDMenu.html";
+      window.location.href = "./index.html";
     }
   } else {
-    window.location.href = "../TDMenu.html";
+    window.location.href = "./index.html";
   }
 });
 

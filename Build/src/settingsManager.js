@@ -1,5 +1,8 @@
 // Settings for Teleporter Dash
-const SettingsManager = {
+import { GameState } from './gameState.js';
+import { AudioManager } from './audioManager.js';
+
+export const SettingsManager = {
   current: {
     volume: 90,
     practiceMode: false,

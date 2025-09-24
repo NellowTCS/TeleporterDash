@@ -8,10 +8,19 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'index.html'),
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        gameloader: path.resolve(__dirname, 'gameloader.html'),
+        leveleditor: path.resolve(__dirname, 'leveleditor.html'),
+        levelstore: path.resolve(__dirname, 'levelstore.html'),
+      },
       output: {
-        entryFileNames: 'main.js',
-        chunkFileNames: 'main.js',
+        entryFileNames: (chunkInfo) => {
+          return `${chunkInfo.name}.js`;
+        },
+        chunkFileNames: (chunkInfo) => {
+          return `shared.js`;
+        },
         assetFileNames: (assetInfo) => {
           if (assetInfo.name && assetInfo.name.endsWith('.css')) {
             return 'styles.css'

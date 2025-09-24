@@ -1,20 +1,17 @@
 // Store levels array
+import { DatabaseManager } from './databaseManager.js';
+import './levelPreview.js';
+
 const storeLevels = [];
 const GITHUB_API_BASE =
   "https://api.github.com/repos/NellowTCS/TeleporterDashLevels";
 const RAW_CONTENT_BASE =
   "https://raw.githubusercontent.com/NellowTCS/TeleporterDashLevels/main";
 
-// Initialize IndexedDB
-let db;
-const DB_NAME = "TeleporterDashDB";
-const STORE_NAME = "downloadedLevels";
-const DB_VERSION = 2; // Increment version to force upgrade
-
 // ===== Database Management =====
 async function deleteDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB_NAME);
+    const request = indexedDB.deleteDatabase(DatabaseManager.DB_NAME);
     request.onsuccess = () => {
       console.log("Database deleted successfully");
       resolve();
@@ -22,39 +19,6 @@ async function deleteDatabase() {
     request.onerror = () => {
       console.error("Error deleting database");
       reject();
-    };
-  });
-}
-
-function initDB() {
-  return new Promise((resolve, reject) => {
-    console.log("Initializing database...");
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = (event) => {
-      console.error("Database error:", event.target.error);
-      reject(event.target.error);
-    };
-
-    request.onupgradeneeded = (event) => {
-      console.log("Database upgrade needed");
-      const db = event.target.result;
-
-      // Only create store if it doesn't exist
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        console.log("Creating object store:", STORE_NAME);
-        const store = db.createObjectStore(STORE_NAME, { keyPath: "filename" });
-        store.createIndex("title", "title", { unique: false });
-        store.createIndex("dateDownloaded", "dateDownloaded", {
-          unique: false,
-        });
-      }
-    };
-
-    request.onsuccess = (event) => {
-      db = event.target.result;
-      console.log("Database initialized successfully");
-      resolve(db);
     };
   });
 }
@@ -67,9 +31,9 @@ async function loadStoreLevels() {
 
     // Show loading state
     document.getElementById("levelGrid").innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center;">
-                Loading levels...
-            </div>`;
+                    <div style="grid-column: 1/-1; text-align: center;">
+                        Loading levels...
+                    </div>`;
 
     // Fetch the list of files from the GitHub repository
     const response = await fetch(`${GITHUB_API_BASE}/contents`);
@@ -100,10 +64,10 @@ async function loadStoreLevels() {
 
         // Create a safe environment to evaluate the level code
         const levelData = new Function(`
-                    let window = {};
-                    ${levelCode}
-                    return window.levelData;
-                `)();
+                            let window = {};
+                            ${levelCode}
+                            return window.levelData;
+                        `)();
 
         if (!levelData || !levelData.matrix) {
           throw new Error(`Invalid level data in ${file.name}`);
@@ -144,26 +108,17 @@ async function loadStoreLevels() {
   } catch (error) {
     console.error("Error loading levels from GitHub:", error);
     document.getElementById("levelGrid").innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; color: red;">
-                ${
-                  error.message ||
-                  "Error loading levels. Please try again later."
-                }
-            </div>`;
+                    <div style="grid-column: 1/-1; text-align: center; color: red;">
+                        ${
+                          error.message ||
+                          "Error loading levels. Please try again later."
+                        }
+                    </div>`;
   }
 }
 
 // // Level Download Management
 async function downloadLevel(filename) {
-  if (!db) {
-    try {
-      await initDB();
-    } catch (error) {
-      console.error("Failed to initialize database:", error);
-      return false;
-    }
-  }
-
   try {
     const response = await fetch(`${RAW_CONTENT_BASE}/${filename}`);
     const levelCode = await response.text();
@@ -171,10 +126,10 @@ async function downloadLevel(filename) {
 
     // Create a temporary environment to evaluate the level data
     const levelData = new Function(`
-            window = {};
-            ${levelCode}
-            return window.levelData;
-        `)();
+                    window = {};
+                    ${levelCode}
+                    return window.levelData;
+                `)();
 
     // Add download metadata
     levelData.filename = filename;
@@ -182,21 +137,10 @@ async function downloadLevel(filename) {
     levelData.originalCode = levelCode;
 
     // Store in IndexedDB
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], "readwrite");
-      const store = transaction.objectStore(STORE_NAME);
-
-      const request = store.put(levelData);
-      request.onsuccess = () => {
-        console.log(`Level ${filename} downloaded successfully`);
-        updateLevelCard(filename);
-        resolve(true);
-      };
-      request.onerror = () => {
-        console.error("Error storing level:", request.error);
-        reject(request.error);
-      };
-    });
+    await DatabaseManager.putLevel(levelData);
+    console.log(`Level ${filename} downloaded successfully`);
+    updateLevelCard(filename);
+    return true;
   } catch (error) {
     console.error("Error downloading level:", error);
     alert("Failed to download level. Please try again.");
@@ -206,59 +150,20 @@ async function downloadLevel(filename) {
 
 // // Delete Level
 async function deleteLevel(filename) {
-  if (!db) {
-    try {
-      await initDB();
-    } catch (error) {
-      console.error("Failed to initialize database:", error);
-      return false;
-    }
+  try {
+    await DatabaseManager.deleteLevel(filename);
+    console.log(`Level ${filename} deleted successfully`);
+    updateLevelCard(filename);
+    return true;
+  } catch (error) {
+    console.error("Error deleting level:", error);
+    return false;
   }
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-
-    const request = store.delete(filename);
-
-    request.onsuccess = () => {
-      console.log(`Level ${filename} deleted successfully`);
-      updateLevelCard(filename);
-      resolve(true);
-    };
-
-    request.onerror = () => {
-      console.error("Error deleting level:", request.error);
-      reject(request.error);
-    };
-  });
 }
 
 // ===== Checks =====
 async function isLevelDownloaded(filename) {
-  if (!db) {
-    try {
-      await initDB();
-    } catch (error) {
-      console.error("Failed to initialize database:", error);
-      return false;
-    }
-  }
-
-  return new Promise((resolve) => {
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(filename);
-
-    request.onsuccess = () => {
-      resolve(!!request.result);
-    };
-
-    request.onerror = () => {
-      console.error("Error checking level status:", request.error);
-      resolve(false);
-    };
-  });
+  return await DatabaseManager.hasLevel(filename);
 }
 
 function updateLevelCard(filename) {
@@ -281,9 +186,9 @@ function displayLevels(levels) {
 
   if (!levels || levels.length === 0) {
     levelGrid.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center;">
-                No levels found.
-            </div>`;
+                    <div style="grid-column: 1/-1; text-align: center;">
+                        No levels found.
+                    </div>`;
     return;
   }
 
@@ -305,9 +210,9 @@ function displayLevels(levels) {
   // If no cards were successfully created
   if (levelGrid.children.length === 0) {
     levelGrid.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center;">
-                Error displaying levels. Please try again later.
-            </div>`;
+                    <div style="grid-column: 1/-1; text-align: center;">
+                        Error displaying levels. Please try again later.
+                    </div>`;
   }
 }
 
@@ -326,8 +231,8 @@ function createLevelCard(level) {
     // Create preview canvas
     const previewCanvas = document.createElement("canvas");
     previewCanvas.className = "level-preview";
-    previewCanvas.width = 200;
-    previewCanvas.height = 150;
+    previewCanvas.width = 500;
+    previewCanvas.height = 200;
 
     // Draw level preview
     drawLevelPreview(previewCanvas, level);
@@ -347,11 +252,11 @@ function createLevelCard(level) {
     const stats = document.createElement("div");
     stats.className = "level-stats";
     stats.innerHTML = `
-            <span>Difficulty: ${level.difficulty || "Normal"}</span>
-            <span style="text-decoration: line-through;">Plays: ${
-              level.plays || 0
-            }</span>
-        `;
+                    <span>Difficulty: ${level.difficulty || "Normal"}</span>
+                    <span style="text-decoration: line-through;">Plays: ${
+                      level.plays || 0
+                    }</span>
+                `;
 
     // Create button container for download/delete buttons
     const buttonContainer = document.createElement("div");
@@ -440,165 +345,6 @@ function getDifficultyFromMatrix(matrix) {
   return "Impossible?";
 }
 
-// ===== Level Preview System =====
-const TILE_COLORS = {
-  "-1": "#ff6b6b", // Red
-  "-2": "#4ecdc4", // Cyan
-  "-3": "#45b7d1", // Blue
-  "-4": "#96ceb4", // Green
-  "-5": "#ff9f1c", // Orange
-  "-6": "#ffbe0b", // Yellow
-  "-7": "#ff006e", // Pink
-  "-8": "#8338ec", // Purple
-  "-9": "#3a86ff", // Light Blue
-  0: "#000000", // Empty
-  1: "#45b7d1", // Platform
-  2: "#ff6b6b", // Spike
-  3: "#9932CC", // Teleporter
-  4: "#00ff00", // Finish
-};
-
-function parseBlockProperties(block) {
-  if (typeof block !== "string") {
-    return isNaN(block) || block === null
-      ? { type: 0, color: null, rotation: 0 }
-      : { type: block, color: null, rotation: 0 };
-  }
-  const props = block.split("/");
-  const type = parseInt(props[0]);
-  if (isNaN(type)) return { type: 0, color: null, rotation: 0 };
-  let color = null;
-  let rotation = 0;
-  props.slice(1).forEach((prop) => {
-    if (prop.startsWith("-")) {
-      color = TILE_COLORS[prop] || null;
-    } else if (prop.startsWith("@")) {
-      rotation = parseInt(prop.substring(1)) || 0;
-    }
-  });
-  return { type, color, rotation };
-}
-
-function drawSpike(ctx, x, y, size, color = "#ff0000", rotation = 0) {
-  ctx.save();
-  ctx.translate(x + size / 2, y + size / 2);
-  ctx.rotate((rotation * Math.PI) / 180);
-
-  ctx.beginPath();
-  ctx.moveTo(-size / 2, size / 2); // Bottom left
-  ctx.lineTo(0, -size / 2); // Top middle
-  ctx.lineTo(size / 2, size / 2); // Bottom right
-  ctx.closePath();
-
-  ctx.fillStyle = color;
-  ctx.fill();
-
-  ctx.restore();
-}
-
-function drawTeleporter(ctx, x, y, size, color = "#00ff00") {
-  const radius = size / 3;
-  ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, radius, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
-
-function drawFinishLine(ctx, x, y, size) {
-  ctx.fillStyle = "#00ff00";
-  ctx.fillRect(x, y, size / 4, size);
-}
-
-function generateLevelPreview(matrix) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const tileSize = 10;
-
-  // Set canvas size based on matrix dimensions
-  canvas.width = matrix[0].length * tileSize;
-  canvas.height = matrix.length * tileSize;
-
-  // Draw background
-  ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw level elements
-  for (let row = 0; row < matrix.length; row++) {
-    for (let col = 0; col < matrix[row].length; col++) {
-      const block = matrix[row][col];
-      const { type, color, rotation } = parseBlockProperties(block);
-      const x = col * tileSize;
-      const y = row * tileSize;
-
-      if (type === 0) continue; // Skip empty tiles
-
-      switch (type) {
-        case 1: // Platform
-          ctx.fillStyle = color || TILE_COLORS["1"];
-          ctx.fillRect(x, y, tileSize, tileSize);
-          break;
-        case 2: // Spike
-          drawSpike(ctx, x, y, tileSize, color || TILE_COLORS["2"], rotation);
-          break;
-        case 3: // Teleporter
-          drawTeleporter(ctx, x, y, tileSize, color || TILE_COLORS["3"]);
-          break;
-        case 4: // Finish line
-          drawFinishLine(ctx, x, y, tileSize);
-          break;
-      }
-    }
-  }
-
-  return canvas;
-}
-
-function drawLevelPreview(canvas, level) {
-  const ctx = canvas.getContext("2d");
-  const matrix = level.matrix;
-
-  if (!matrix) return;
-
-  const tileSize = canvas.width / 20;
-  const previewWidth = 20;
-  const previewHeight = 15;
-
-  // Draw background
-  ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw level tiles
-  for (let row = 0; row < Math.min(matrix.length, previewHeight); row++) {
-    for (let col = 0; col < Math.min(matrix[row].length, previewWidth); col++) {
-      const block = matrix[row][col];
-      const { type, color, rotation } = parseBlockProperties(block);
-      const x = col * tileSize;
-      const y = row * tileSize;
-
-      if (type === 0) continue; // Skip empty tiles
-
-      switch (type) {
-        case 1: // Platform
-          ctx.fillStyle = color || TILE_COLORS["1"];
-          ctx.fillRect(x, y, tileSize, tileSize);
-          break;
-        case 2: // Spike
-          drawSpike(ctx, x, y, tileSize, color || TILE_COLORS["2"], rotation);
-          break;
-        case 3: // Teleporter
-          drawTeleporter(ctx, x, y, tileSize, color || TILE_COLORS["3"]);
-          break;
-        case 4: // Finish line
-          drawFinishLine(ctx, x, y, tileSize);
-          break;
-      }
-    }
-  }
-}
-
 // ===== Search and Filter Levels =====
 function searchLevels(query) {
   const filtered = storeLevels.filter((level) =>
@@ -647,7 +393,7 @@ function filterLevels(criteria) {
 // Initialize database when page loads
 window.onload = async () => {
   try {
-    await initDB();
+    await DatabaseManager.initDB();
     console.log("Database initialized");
     // Load levels after database is initialized
     await loadStoreLevels();
@@ -655,18 +401,17 @@ window.onload = async () => {
   } catch (error) {
     console.error("Failed to initialize:", error);
     document.getElementById("levelGrid").innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; color: red;">
-                Error initializing level store. Please try again later.
-            </div>`;
+                    <div style="grid-column: 1/-1; text-align: center; color: red;">
+                        Error initializing level store. Please try again later.
+                    </div>`;
   }
 };
 function startGame(levelFilename) {
   window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
     levelFilename
   )}`;
-
-  transitionMenu(
-    document.querySelector(".menu"),
-    document.querySelector(".level-selector")
-  );
 }
+
+// Export functions for HTML onclick access
+window.searchLevels = searchLevels;
+window.filterLevels = filterLevels;

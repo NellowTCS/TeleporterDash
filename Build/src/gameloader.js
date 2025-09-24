@@ -1,9 +1,22 @@
+// Game Loader for Teleporter Dash
+import { GameState } from './gameState.js';
+import { AudioManager } from './audioManager.js';
+import { LevelLoader } from './levelLoader.js';
+import { SettingsManager } from './settingsManager.js';
+import { ScoreManager } from './scoreManager.js';
+import { DatabaseManager } from './databaseManager.js';
+import { COLOR_MAP, CONSTANTS } from './constants.js';
+
 // Get reference to game container
 const gameContainer = document.getElementById("gameContainer");
 const player = document.getElementById("player");
 
-// Timer variable (needs to be accessible for clearing)
+// Make player globally accessible for other modules
+window.player = player;
+
+// Timer variables (needs to be accessible for clearing)
 let levelTimer = null;
+let levelTime = 0;
 
 // Extract levelId from URL parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -15,18 +28,7 @@ if (urlParams.has("level")) {
 }
 
 // Color mapping for blocks
-const COLOR_MAP = {
-  0: "#000000", // Black
-  "-1": "#ff6b6b", // Red
-  "-2": "#4ecdc4", // Cyan
-  "-3": "#45b7d1", // Blue
-  "-4": "#96ceb4", // Green
-  "-5": "#ff9f1c", // Orange
-  "-6": "#ffbe0b", // Yellow
-  "-7": "#ff006e", // Pink
-  "-8": "#8338ec", // Purple
-  "-9": "#3a86ff", // Light Blue
-};
+// COLOR_MAP is now imported from constants.js
 
 // Initialize database when page loads
 document.addEventListener("DOMContentLoaded", async () => {
@@ -43,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Then proceed with level loading
     console.log("Starting level initialization...");
-    await LevelLoader.initDB();
+    await DatabaseManager.initDB();
     await LevelLoader.initializeLevelData();
     await initializeLevel();
     console.log("Level initialization complete");
@@ -54,11 +56,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ===== Variables =====
-const CONSTANTS = {
-  COLUMN_WIDTH: 40, // Width of each column in the level matrix
-  GROUND_HEIGHT: 50, // Height of the ground from bottom of container
-  INITIAL_SPACE: 740, // Initial empty space before level starts (IMP)
-};
 
 // Physics constants
 const gravity = 2000; // Rate at which player falls (pixels/second²)
@@ -79,6 +76,10 @@ const MAX_DELTA_TIME = 1 / 30; // Cap deltaTime to prevent large jumps
 const progressText = document.getElementById("progressText");
 const progressFill = document.getElementById("progressFill");
 let totalColumns = 0; // Will be set when levelMatrix is loaded
+
+// Make progress elements globally accessible
+window.progressText = progressText;
+window.progressFill = progressFill;
 
 // Global jump buffer for keyboard/mouse inputs
 let jumpBufferTime = 0; // milliseconds
@@ -258,7 +259,9 @@ function createObstacleFromMatrix(type, row) {
     // Invert the row calculation to start from bottom
     const baseHeight = 50;
     const rowSpacing = 45; // Match platform block height
-    const invertedRow = levelMatrix.length - 1 - row;
+    const state = GameState.getState();
+    const levelHeight = state.levelMatrix ? state.levelMatrix.length : 10; // fallback
+    const invertedRow = levelHeight - 1 - row;
     emptyBlock.style.bottom = baseHeight + invertedRow * rowSpacing + "px";
 
     document.getElementById("cameraContainer").appendChild(emptyBlock);
@@ -326,7 +329,9 @@ function createObstacleFromMatrix(type, row) {
   // Calculate vertical position (inverted row calculation)
   const baseHeight = 50;
   const rowSpacing = 45; // Match platform block height
-  const invertedRow = levelMatrix.length - 1 - row;
+  const state = GameState.getState();
+  const levelHeight = state.levelMatrix ? state.levelMatrix.length : 10; // fallback
+  const invertedRow = levelHeight - 1 - row;
   obstacle.style.bottom = baseHeight + invertedRow * rowSpacing + "px";
 
   document.getElementById("cameraContainer").appendChild(obstacle);
@@ -453,12 +458,14 @@ function handlePlatformCollision(playerRect, platform) {
  * Called when player reaches the finish line
  */
 function levelComplete() {
-  const state = GameState.getState();
+  // Sync GameState.currentTime with levelTime for accurate score submission
   GameState.setState({
-    isLevelComplete: true
+    isLevelComplete: true,
+    currentTime: levelTime
   });
   clearInterval(levelTimer);
 
+  const state = GameState.getState();
   // Save score using the filename instead of levelId
   const urlParams = new URLSearchParams(window.location.search);
   const onlineparam = urlParams.get("online");
@@ -523,6 +530,9 @@ let cameraOffsetY = 0;
 const CAMERA_FOLLOW_THRESHOLD = 50; // Reduced from 100 to make camera more responsive
 const MAX_CAMERA_SPEED = 20; // Increased from 15 to make camera movement smoother
 
+// Make cameraOffsetY globally accessible
+window.cameraOffsetY = cameraOffsetY;
+
 /**
  * Main game loop that updates all game elements
  * Called every animation frame when game is running
@@ -555,21 +565,22 @@ function updateGame() {
   // Apply game speed to obstacle movement (frame-rate independent)
   const baseSpeed = 240; // pixels per second (DO NOT ADJUST FOR DELTATIME, THIS IS WHAT CAUSED IT TO NOT WORK WHEN I DID IT)
   const currentSpeed = state.isPracticeMode
-    ? baseSpeed * (SettingsManager.current.gameSpeed / 4)
+    ? baseSpeed * (state.gameSpeed / 4)
     : baseSpeed;
   const frameSpeed = currentSpeed * deltaTime; // Convert to pixels per frame
 
   // Create new obstacles when needed
   // Only creates obstacles when there's enough space from the last one
   if (
-    state.currentColumn < levelMatrix[0].length &&
+    state.levelMatrix && state.levelMatrix.length > 0 &&
+    state.currentColumn < state.levelMatrix[0].length &&
     (obstacles.length === 0 ||
       gameContainer.offsetWidth -
         obstacles[obstacles.length - 1]?.element.offsetLeft >
         CONSTANTS.COLUMN_WIDTH)
   ) {
-    for (let row = 0; row < levelMatrix.length; row++) {
-      createObstacleFromMatrix(levelMatrix[row][state.currentColumn], row);
+    for (let row = 0; row < state.levelMatrix.length; row++) {
+      createObstacleFromMatrix(state.levelMatrix[row][state.currentColumn], row);
     }
     GameState.setState({
       currentColumn: state.currentColumn + 1
@@ -738,62 +749,6 @@ function updateGame() {
   // Apply camera transform
   const cameraContainer = document.getElementById("cameraContainer");
   cameraContainer.style.transform = `translateY(${cameraOffsetY}px)`;
-}
-
-/**
- * Handles specific collision logic for platforms
- * Includes landing detection and side collision
- */
-function handlePlatformCollision(playerRect, platform) {
-  // Get raw positions without camera influence
-  const playerBottom = parseInt(player.style.bottom);
-  const platformBottom = parseInt(platform.style.bottom);
-  const playerLeft = parseInt(player.style.left);
-  const platformLeft = parseInt(platform.style.left);
-
-  // Calculate overlap using absolute positions
-  const horizontalOverlap =
-    Math.min(playerLeft + 30, platformLeft + 45) -
-    Math.max(playerLeft, platformLeft);
-  const playerWidth = 30;
-
-  const state = GameState.getState();
-
-  if (
-    state.playerVelocity > 0 && // Moving downward
-    playerBottom <= platformBottom + 45 && // Platform height is 45
-    playerBottom >= platformBottom &&
-    horizontalOverlap > playerWidth * 0.3
-  ) {
-    // Safe landing
-    GameState.setState({
-      isOnPlatform: true,
-      isJumping: false,
-      doubleJumpAvailable: true,
-      playerVelocity: 0
-    });
-    player.style.bottom = platformBottom + 45 + "px";
-    return "safe";
-  } else {
-    // Side collision check - only if player is significantly inside the platform
-    const playerCenterX = playerLeft + playerWidth / 2;
-    const platformCenterX = platformLeft + 22.5; // Half of platform width (45/2)
-    const verticalOverlap =
-      Math.min(playerBottom + 30, platformBottom + 45) -
-      Math.max(playerBottom, platformBottom);
-
-    // Check if we're colliding from the side and not just grazing the top
-    if (
-      horizontalOverlap > playerWidth * 0.4 && // Significant horizontal overlap
-      verticalOverlap > 10 && // Significant vertical overlap
-      playerBottom < platformBottom + 40 && // Not near the top
-      Math.abs(playerCenterX - platformCenterX) < 20 && // Close to platform center
-      !state.isJumping // Not in a jump
-    ) {
-      return "death";
-    }
-  }
-  return "none";
 }
 
 /**
@@ -1054,16 +1009,15 @@ function handleMouseJump(e) {
          * Throttled to avoid performance issues
          */
 function updateProgress() {
-  if (!levelMatrix || levelMatrix.length === 0) return;
+  const state = GameState.getState();
+  if (!state.levelMatrix || state.levelMatrix.length === 0) return;
 
   const currentTime = Date.now();
   if (currentTime - lastProgressUpdate < progressUpdateInterval) return;
-
-  const state = GameState.getState();
   
   // Set totalColumns if not already set
   if (totalColumns === 0) {
-    totalColumns = levelMatrix[0].length;
+    totalColumns = state.levelMatrix[0].length;
   }
   
   // Calculate progress based on current column position
@@ -1114,11 +1068,14 @@ function updateProgress() {
  * Used for progress tracking and level completion
  */
 function calculateTotalBlocks() {
+  const state = GameState.getState();
+  if (!state.levelMatrix || state.levelMatrix.length === 0) return;
+  
   // Search for finish line in level matrix
   finishLinePosition = 0;
-  for (let col = 0; col < levelMatrix[0].length; col++) {
-    for (let row = 0; row < levelMatrix.length; row++) {
-      if (levelMatrix[row][col] === 4) {
+  for (let col = 0; col < state.levelMatrix[0].length; col++) {
+    for (let row = 0; row < state.levelMatrix.length; row++) {
+      if (state.levelMatrix[row][col] === 4) {
         // 4 represents finish line
         finishLinePosition = col;
         break;
@@ -1128,10 +1085,10 @@ function calculateTotalBlocks() {
   }
 
   // Calculate total blocks up to finish line
-  totalBlocks = finishLinePosition * levelMatrix.length;
+  totalBlocks = finishLinePosition * state.levelMatrix.length;
   if (totalBlocks === 0) {
     console.error("No finish line found in level matrix!");
-    totalBlocks = levelMatrix[0].length * levelMatrix.length; // Fallback calculation
+    totalBlocks = state.levelMatrix[0].length * state.levelMatrix.length; // Fallback calculation
   }
 }
 
@@ -1235,33 +1192,36 @@ async function initializeLevel() {
   // Practice mode setup
   if (practiceModeCheckbox) {
     practiceModeCheckbox.addEventListener("change", async function () {
-      isPracticeMode = this.checked;
-      SettingsManager.current.practiceMode = isPracticeMode;
+      const practiceMode = this.checked;
+      GameState.setState({ isPracticeMode: practiceMode });
+      SettingsManager.current.practiceMode = practiceMode;
       SettingsManager.save();
 
       // Enable/disable game speed control
       const gameSpeedSelect = document.getElementById("gameSpeed");
       if (gameSpeedSelect) {
-        gameSpeedSelect.disabled = !isPracticeMode;
-        if (!isPracticeMode) {
-          gameSpeed = 4;
+        gameSpeedSelect.disabled = !practiceMode;
+        if (!practiceMode) {
+          GameState.setState({ gameSpeed: 4 });
           gameSpeedSelect.value = "1";
-          SettingsManager.current.gameSpeed = gameSpeed;
+          SettingsManager.current.gameSpeed = 4;
           SettingsManager.save();
         } else {
           // Initialize game speed when practice mode is enabled
-          gameSpeed = SettingsManager.current.gameSpeed || 4;
-          gameSpeedSelect.value = (gameSpeed / 4).toString();
+          const newGameSpeed = SettingsManager.current.gameSpeed || 4;
+          GameState.setState({ gameSpeed: newGameSpeed });
+          gameSpeedSelect.value = (newGameSpeed / 4).toString();
         }
       }
 
       // Only switch music if the level is actually running
-      if (isLevelStarted && !isPaused && !isGameOver && !isLevelComplete) {
+      const currentState = GameState.getState();
+      if (currentState.isLevelStarted && !currentState.isPaused && !currentState.isGameOver && !currentState.isLevelComplete) {
         try {
-          const musicToPlay = isPracticeMode
+          const musicToPlay = practiceMode
             ? AudioManager.practiceMusic
             : AudioManager.backgroundMusic;
-          const musicToPause = isPracticeMode
+          const musicToPause = practiceMode
             ? AudioManager.backgroundMusic
             : AudioManager.practiceMusic;
           await AudioManager.switchTracks(musicToPlay, musicToPause);
@@ -1282,17 +1242,19 @@ async function initializeLevel() {
   const gameSpeedSelect = document.getElementById("gameSpeed");
   if (gameSpeedSelect) {
     // Initialize game speed select state
-    gameSpeedSelect.disabled = !isPracticeMode;
+    const state = GameState.getState();
+    gameSpeedSelect.disabled = !state.isPracticeMode;
     if (SettingsManager.current.gameSpeed) {
-      gameSpeed = SettingsManager.current.gameSpeed;
-      gameSpeedSelect.value = gameSpeed.toString();
+      GameState.setState({ gameSpeed: SettingsManager.current.gameSpeed });
+      gameSpeedSelect.value = SettingsManager.current.gameSpeed.toString();
     }
 
     gameSpeedSelect.addEventListener("change", function () {
-      if (isPracticeMode) {
+      const currentState = GameState.getState();
+      if (currentState.isPracticeMode) {
         const speedMultiplier = parseFloat(this.value);
-        gameSpeed = 4 * speedMultiplier;
-        SettingsManager.current.gameSpeed = gameSpeed;
+        GameState.setState({ gameSpeed: 4 * speedMultiplier });
+        SettingsManager.current.gameSpeed = 4 * speedMultiplier;
         SettingsManager.save();
       }
     });
@@ -1333,6 +1295,9 @@ function setupControls(method) {
   }
 }
 
+// Make setupControls globally accessible
+window.setupControls = setupControls;
+
 /**
  * Preloads all game assets before starting
  * Returns a Promise that resolves when all assets are loaded
@@ -1359,7 +1324,7 @@ document
 // Restart game from pause menu
 document.getElementById("restartFromPauseBtn").addEventListener("click", () => {
   pauseMenu.style.display = "none";
-  isPaused = false;
+  GameState.setState({ isPaused: false });
   location.reload();
 });
 
@@ -1409,7 +1374,10 @@ function updateBackgroundColor() {
   const state = GameState.getState();
   
   // Basic validation
-  if (!levelMatrix || !levelMatrix.length || !state.levelColorRow || !state.levelColorRow.length) return;
+  if (!state.levelMatrix || !state.levelMatrix.length || !state.levelColorRow || !state.levelColorRow.length) {
+    // Early return if level data isn't loaded yet
+    return;
+  }
 
   try {
     // Account for initial empty space using CONSTANTS
@@ -1668,7 +1636,8 @@ function initializeTouchControls() {
     "touchend",
     function (e) {
       e.preventDefault();
-      if (!isPaused && !isGameOver && !isLevelComplete && !isSwiping) {
+      const state = GameState.getState();
+      if (!state.isPaused && !state.isGameOver && !state.isLevelComplete && !isSwiping) {
         jump();
       }
     },
@@ -1701,12 +1670,14 @@ if (startLevelBtn) {
       this.style.display = "none";
 
       // Reset game state
-      isGameOver = false;
-      isLevelComplete = false;
-      isPaused = false;
-      currentColumn = 0;
-      playerVelocity = 0;
-      rotation = 0;
+      GameState.setState({
+        isGameOver: false,
+        isLevelComplete: false,
+        isPaused: false,
+        currentColumn: 0,
+        playerVelocity: 0,
+        rotation: 0
+      });
 
       // Clear any existing animation frame
       if (animationFrameId) {
@@ -1728,15 +1699,17 @@ if (startLevelBtn) {
       });
 
       // Setup audio and wait for it to be ready
-      await AudioManager.setup(levelMusic);
+      const musicState = GameState.getState();
+      await AudioManager.setup(musicState.levelMusic);
 
       // Start the appropriate music
       if (!AudioManager.isMuted) {
         try {
-          const musicToPlay = isPracticeMode
+          const currentState = GameState.getState();
+          const musicToPlay = currentState.isPracticeMode
             ? AudioManager.practiceMusic
             : AudioManager.backgroundMusic;
-          const musicToPause = isPracticeMode
+          const musicToPause = currentState.isPracticeMode
             ? AudioManager.backgroundMusic
             : AudioManager.practiceMusic;
           await AudioManager.switchTracks(musicToPlay, musicToPause);
@@ -1745,7 +1718,7 @@ if (startLevelBtn) {
         }
       }
 
-      isLevelStarted = true;
+      GameState.setState({ isLevelStarted: true });
 
       // Reset animation frame if it exists
       if (animationFrameId) {
@@ -1755,11 +1728,12 @@ if (startLevelBtn) {
 
       // Start the game loop
       initializeLevel();
-      isLevelStarted = true;
+      GameState.setState({ isLevelStarted: true });
       // Start the level timer
       levelTime = 0;
       levelTimer = setInterval(() => {
-        if (!isPaused && !isGameOver && !isLevelComplete) {
+        const currentState = GameState.getState();
+        if (!currentState.isPaused && !currentState.isGameOver && !currentState.isLevelComplete) {
           levelTime++;
           // Update timer display
           const timerDisplay = document.getElementById("timer");
@@ -1826,3 +1800,6 @@ function showLoadingError(message, isBuiltIn = false) {
     container.appendChild(p);
   }
 }
+
+// Make showLoadingError globally accessible
+window.showLoadingError = showLoadingError;

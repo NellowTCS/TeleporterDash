@@ -1,5 +1,8 @@
 // Audio Manager for Teleporter Dash
-const AudioManager = {
+import { GameState } from './gameState.js';
+import { SettingsManager } from './settingsManager.js';
+
+export const AudioManager = {
   // // "Initialize" Variables
   backgroundMusic: null,
   practiceMusic: null,
@@ -186,18 +189,23 @@ const AudioManager = {
 
   // // Mute
   toggleMute() {
-    this.isMuted = !this.isMuted;
-    SettingsManager.current.isMuted = this.isMuted;
+    const currentMutedState = this.isMuted;
+    const newMutedState = !currentMutedState;
+    
+    // Update GameState
+    GameState.setState({ isMuted: newMutedState });
+    SettingsManager.current.isMuted = newMutedState;
     SettingsManager.save();
 
-    const currentMusic = isPracticeMode
+    const state = GameState.getState();
+    const currentMusic = state.isPracticeMode
       ? this.practiceMusic
       : this.backgroundMusic;
 
-    if (this.isMuted) {
+    if (newMutedState) {
       this.lastMusicTime = currentMusic.currentTime;
       this.pause(currentMusic);
-    } else if (isLevelStarted && !isPaused && !isGameOver && !isLevelComplete) {
+    } else if (state.isLevelStarted && !state.isPaused && !state.isGameOver && !state.isLevelComplete) {
       // Don't set currentTime before play, let play handle it
       this.play(currentMusic, this.lastMusicTime).catch((e) =>
         console.error("Error playing music:", e)

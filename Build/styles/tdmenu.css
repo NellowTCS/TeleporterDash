@@ -202,18 +202,15 @@ button:active {
 }
 
 .level-preview {
-  width: calc(40vw * var(--level-selector-scale) * var(--content-scale));
-  height: calc(30vw * var(--level-selector-scale) * var(--content-scale));
-  max-width: calc(500px * var(--content-scale));
-  max-height: calc(375px * var(--content-scale));
+  width: 100%;
+  max-width: 500px;
+  height: 200px;
+  margin: 0 auto;
   background-color: var(--bg-darkest);
   border-radius: calc(
     15px * var(--level-selector-scale) * var(--content-scale)
   );
-  overflow: hidden;
-  margin: 0 auto;
   box-shadow: var(--shadow-glow);
-  image-rendering: pixelated;
 }
 
 .completion {

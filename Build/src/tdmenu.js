@@ -1,4 +1,7 @@
 // Menu Navigation System
+import { DatabaseManager } from './databaseManager.js';
+import './levelPreview.js';
+
 async function transitionMenu(fromMenu, toMenu) {
   return new Promise((resolve) => {
     if (fromMenu) {
@@ -98,69 +101,8 @@ let maxLevelIndex = 0;
 let loadingStarted = false;
 let currentLevelType = "built-in";
 
-let db;
-const DB_NAME = "TeleporterDashDB";
-const DB_VERSION = 2;
-const STORE_NAME = "downloadedLevels";
-
-function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      console.error("Failed to open database:", request.error);
-      reject(request.error);
-    };
-
-    request.onsuccess = (event) => {
-      db = event.target.result;
-      console.log("Database opened successfully");
-      resolve(db);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "filename" });
-        console.log("Object store created");
-      }
-      if (!db.objectStoreNames.contains("scores")) {
-        db.createObjectStore("scores");
-        console.log("Scores object store created");
-      }
-    };
-  });
-}
-
 async function getDownloadedLevels() {
-  if (!db) {
-    try {
-      await initDB();
-    } catch (error) {
-      console.error("Failed to initialize database:", error);
-      return [];
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    try {
-      const transaction = db.transaction([STORE_NAME], "readonly");
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        resolve(request.result || []);
-      };
-
-      request.onerror = () => {
-        console.error("Error fetching downloaded levels:", request.error);
-        reject(request.error);
-      };
-    } catch (error) {
-      console.error("Error in transaction:", error);
-      reject(error);
-    }
-  });
+  return await DatabaseManager.getDownloadedLevels();
 }
 
 const BUILT_IN_LEVELS = [
@@ -179,19 +121,12 @@ async function loadBuiltInLevelRegistry() {
   const levelSelector = document.querySelector(
     ".built-in-levels .level-selector"
   );
-  levelSelector.innerHTML = `
-        <h1>Select Level</h1>
-        <div class="level-display">
-            <div class="level-preview"></div>
-            <div class="level-info"></div>
-            <div class="level-navigation">
-                <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
-                <button onclick="startGame()">Play Level</button>
-                <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
-            </div>
-        </div>
-        <button class="back-button" onclick="handleMenuTransition('built-in-levels', 'menu')">Back to Menu</button>
-    `;
+  
+  // Clone template and populate
+  const template = document.getElementById('built-in-level-template');
+  const content = template.content.cloneNode(true);
+  levelSelector.innerHTML = '';
+  levelSelector.appendChild(content);
 
   const levels = await scanForLevels();
   window.builtInLevels = levels;
@@ -201,26 +136,20 @@ async function loadBuiltInLevelRegistry() {
 }
 
 async function loadOnlineLevelRegistry() {
+  loadingStarted = true;
   currentLevelType = "online";
   const levelSelector = document.querySelector(
     ".online-levels .level-selector"
   );
-  levelSelector.innerHTML = `
-        <h1>Downloaded Levels</h1>
-        <div class="level-display">
-            <div class="level-preview"></div>
-            <div class="level-info"></div>
-            <div class="level-navigation">
-                <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
-                <button onclick="startGame()">Play Level</button>
-                <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
-            </div>
-        </div>
-        <button class="back-button" onclick="handleMenuTransition('online-levels', 'menu')">Back to Menu</button>
-    `;
+  
+  // Clone template and populate
+  const template = document.getElementById('online-level-template');
+  const content = template.content.cloneNode(true);
+  levelSelector.innerHTML = '';
+  levelSelector.appendChild(content);
 
   try {
-    const levels = await getDownloadedLevels();
+    const levels = await DatabaseManager.getDownloadedLevels();
     if (levels.length === 0) {
       const levelDisplay = document.querySelector(
         ".online-levels .level-display"
@@ -229,7 +158,7 @@ async function loadOnlineLevelRegistry() {
         '<p class="no-levels">No downloaded levels found.<br>Visit the Level Store to download levels!</p>';
       return;
     }
-    window.downloadedLevels = levels;
+    window.onlineLevels = levels;
     currentLevelIndex = 0;
     maxLevelIndex = levels.length - 1;
     await updateLevelDisplay();
@@ -252,172 +181,6 @@ async function handleLevelNavigation(direction) {
   }
 }
 
-const TILE_COLORS = {
-  "-1": "#ff6b6b",
-  "-2": "#4ecdc4",
-  "-3": "#45b7d1",
-  "-4": "#96ceb4",
-  "-5": "#ff9f1c",
-  "-6": "#ffbe0b",
-  "-7": "#ff006e",
-  "-8": "#8338ec",
-  "-9": "#3a86ff",
-  0: "#000000",
-  1: "#45b7d1",
-  2: "#ff6b6b",
-  3: "#9932CC",
-  4: "#00ff00",
-};
-
-function parseBlockProperties(block) {
-  if (typeof block !== "string") {
-    return { type: block, color: null, rotation: 0 };
-  }
-
-  const props = block.split("/");
-  const type = parseInt(props[0]);
-  let color = null;
-  let rotation = 0;
-
-  props.slice(1).forEach((prop) => {
-    if (prop.startsWith("-")) {
-      color = TILE_COLORS[prop];
-    } else if (prop.startsWith("@")) {
-      rotation = parseInt(prop.substring(1));
-    }
-  });
-
-  return { type, color, rotation };
-}
-
-function drawSpike(ctx, x, y, size, color = "#ff6b6b", rotation = 0) {
-  ctx.save();
-  ctx.translate(x + size / 2, y + size / 2);
-  ctx.rotate((rotation * Math.PI) / 180);
-
-  ctx.beginPath();
-  ctx.moveTo(-size / 2, size / 2);
-  ctx.lineTo(0, -size / 2);
-  ctx.lineTo(size / 2, size / 2);
-  ctx.closePath();
-
-  ctx.fillStyle = color;
-  ctx.fill();
-
-  ctx.restore();
-}
-
-function drawTeleporter(ctx, x, y, size, color = "#9932CC") {
-  const radius = size / 3;
-  ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, radius, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
-
-function drawFinishLine(ctx, x, y, size) {
-  ctx.fillStyle = "#00ff00";
-  ctx.fillRect(x, y, size / 4, size);
-}
-
-function generateLevelPreview(matrix) {
-  const scale =
-    parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        "--level-selector-scale"
-      )
-    ) || 1;
-  const contentScale =
-    parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        "--content-scale"
-      )
-    ) || 1;
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.min(
-    (40 * scale * contentScale * window.innerWidth) / 100,
-    500 * contentScale
-  );
-  canvas.height = Math.min(
-    (30 * scale * contentScale * window.innerWidth) / 100,
-    375 * contentScale
-  );
-  const ctx = canvas.getContext("2d");
-
-  const previewRows = Math.min(20, matrix.length);
-  const previewCols = Math.min(17, matrix[0].length);
-
-  const tileSize = Math.min(
-    canvas.width / previewCols,
-    canvas.height / previewRows
-  );
-
-  const offsetX = (canvas.width - previewCols * tileSize) / 2;
-  const offsetY = (canvas.height - previewRows * tileSize) / 2;
-
-  ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  for (let y = 0; y < previewRows; y++) {
-    for (let x = 0; x < previewCols; x++) {
-      const block = matrix[y][x];
-      const { type, color, rotation } = parseBlockProperties(block);
-      const tileX = offsetX + x * tileSize;
-      const tileY = offsetY + y * tileSize;
-
-      if (type === 0) continue;
-
-      switch (type) {
-        case 1:
-          ctx.fillStyle = color || TILE_COLORS["1"];
-          ctx.fillRect(tileX, tileY, tileSize, tileSize);
-          break;
-        case 2:
-          drawSpike(
-            ctx,
-            tileX,
-            tileY,
-            tileSize,
-            color || TILE_COLORS["2"],
-            rotation
-          );
-          break;
-        case 3:
-          drawTeleporter(
-            ctx,
-            tileX,
-            tileY,
-            tileSize,
-            color || TILE_COLORS["3"]
-          );
-          break;
-        case 4:
-          drawFinishLine(ctx, tileX, tileY, tileSize);
-          break;
-      }
-    }
-  }
-
-  return canvas;
-}
-
-function drawLevelPreview(level) {
-  if (!level || !level.matrix) {
-    console.error("Invalid level data for preview:", level);
-    return null;
-  }
-
-  try {
-    return generateLevelPreview(level.matrix);
-  } catch (error) {
-    console.error("Error generating level preview:", error);
-    return null;
-  }
-}
-
 async function updateLevelDisplay() {
   const container = document.querySelector(
     currentLevelType === "built-in"
@@ -428,27 +191,26 @@ async function updateLevelDisplay() {
 
   const levelDisplay = container.querySelector(".level-display");
   if (!levelDisplay) {
-    container.innerHTML = `
-            <h1>${
-              currentLevelType === "built-in"
-                ? "Select Level"
-                : "Downloaded Levels"
-            }</h1>
-            <div class="level-display">
-                <div class="level-preview"></div>
-                <div class="level-info"></div>
-                <div class="level-navigation">
-                    <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
-                    <button onclick="startGame()">Play Level</button>
-                    <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
-                </div>
-            </div>
-            <button class="back-button" onclick="handleMenuTransition('${
-              currentLevelType === "built-in"
-                ? "built-in-levels"
-                : "online-levels"
-            }', 'menu')">Back to Menu</button>
-        `;
+    // Clone the level-display template
+    const template = document.getElementById('level-display-template');
+    const content = template.content.cloneNode(true);
+    container.innerHTML = '';
+    container.appendChild(content);
+    
+    // Update the title based on level type
+    const title = container.querySelector('h1');
+    if (title) {
+      title.textContent = currentLevelType === "built-in" ? "Select Level" : "Downloaded Levels";
+    }
+    
+    // Update back button onclick
+    const backButton = container.querySelector('.back-button');
+    if (backButton) {
+      backButton.onclick = () => handleMenuTransition(
+        currentLevelType === "built-in" ? "built-in-levels" : "online-levels", 
+        'menu'
+      );
+    }
   }
 
   try {
@@ -474,10 +236,11 @@ async function updateLevelDisplay() {
 
     const preview = container.querySelector(".level-preview");
     preview.innerHTML = "";
-    const previewCanvas = drawLevelPreview(levelData);
-    if (previewCanvas) {
-      preview.appendChild(previewCanvas);
-    }
+    const previewCanvas = document.createElement("canvas");
+    previewCanvas.width = 500;
+    previewCanvas.height = 200;
+    drawLevelPreview(previewCanvas, levelData);
+    preview.appendChild(previewCanvas);
 
     const info = container.querySelector(".level-info");
     info.innerHTML = "";
@@ -643,4 +406,14 @@ function clearData() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", initDB);
+document.addEventListener("DOMContentLoaded", () => DatabaseManager.initDB());
+
+// Make functions global for HTML onclick
+window.handleMenuTransition = handleMenuTransition;
+window.startGame = startGame;
+window.openLevelEditor = openLevelEditor;
+window.showCredits = showCredits;
+window.levelStore = levelStore;
+window.updateVolumeLabel = updateVolumeLabel;
+window.handleLevelNavigation = handleLevelNavigation;
+window.clearData = clearData;

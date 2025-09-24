@@ -11,7 +11,7 @@ body {
 }
 
 .store-container {
-  max-width: 1200px;
+  width: 100%;
   margin: 2rem auto;
   padding: 1rem;
 }
@@ -23,7 +23,7 @@ body {
 
 .level-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 2rem;
   padding: 1rem;
 }
@@ -44,11 +44,11 @@ body {
 }
 
 .level-preview {
-  width: 200px;
-  height: 150px;
-  background-color: #1a1a2e;
-  overflow: hidden;
+  width: 100%;
+  max-width: 500px;
+  height: 200px;
   margin: 0 auto;
+  border-radius: 4%;
 }
 
 .level-info {
@@ -126,10 +126,6 @@ button:hover {
   color: var(--text-color);
   border-radius: 5px;
   font-family: "Orbitron", sans-serif;
-}
-
-.preview-canvas {
-  image-rendering: pixelated;
 }
 
 .download-button {

@@ -1,5 +1,5 @@
 // Game State Manager for Teleporter Dash
-const GameState = {
+export const GameState = {
     // Current State
     current: {
         isLevelStarted: false,

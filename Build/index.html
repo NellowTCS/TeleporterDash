@@ -47,6 +47,49 @@
       </div>
     </div>
 
+    <!-- Level selector templates -->
+    <template id="built-in-level-template">
+      <h1>Select Level</h1>
+      <div class="level-display">
+        <div class="level-preview"></div>
+        <div class="level-info"></div>
+        <div class="level-navigation">
+          <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
+          <button onclick="startGame()">Play Level</button>
+          <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
+        </div>
+      </div>
+      <button class="back-button" onclick="handleMenuTransition('built-in-levels', 'menu')">Back to Menu</button>
+    </template>
+
+    <template id="online-level-template">
+      <h1>Downloaded Levels</h1>
+      <div class="level-display">
+        <div class="level-preview"></div>
+        <div class="level-info"></div>
+        <div class="level-navigation">
+          <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
+          <button onclick="startGame()">Play Level</button>
+          <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
+        </div>
+      </div>
+      <button class="back-button" onclick="handleMenuTransition('online-levels', 'menu')">Back to Menu</button>
+    </template>
+
+    <template id="level-display-template">
+      <h1>Level Title</h1>
+      <div class="level-display">
+        <div class="level-preview"></div>
+        <div class="level-info"></div>
+        <div class="level-navigation">
+          <button class="nav-button prev" onclick="handleLevelNavigation(-1)">Previous</button>
+          <button onclick="startGame()">Play Level</button>
+          <button class="nav-button next" onclick="handleLevelNavigation(1)">Next</button>
+        </div>
+      </div>
+      <button class="back-button" onclick="handleMenuTransition('level-type', 'menu')">Back to Menu</button>
+    </template>
+
     <div class="options-menu" style="display: none">
       <h1>Settings</h1>
       <div
@@ -71,6 +114,6 @@
       </button>
     </div>
 
-    <script src="./src/tdmenu.js"></script>
+  <script type="module" src="./src/tdmenu.js"></script>
   </body>
 </html>

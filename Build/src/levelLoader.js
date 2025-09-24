@@ -1,10 +1,18 @@
 // Level Loader for Teleporter Dash
-const LevelLoader = {
+import { GameState } from './gameState.js';
+import { COLOR_MAP, CONSTANTS } from './constants.js';
+import { AudioManager } from './audioManager.js';
+import { DatabaseManager } from './databaseManager.js';
+import { SettingsManager } from './settingsManager.js';
+
+// Global variables needed for level loading
+let levelColorSteps = [];
+let levelColorIndex = 0;
+let levelTransitionFactor = 0;
+let levelMusic = null;
+
+export const LevelLoader = {
   // // "Initialize" Variables
-  db: null,
-  DB_NAME: "TeleporterDashDB",
-  STORE_NAME: "downloadedLevels",
-  DB_VERSION: 2,
   GITHUB_API_BASE:
     "https://api.github.com/repos/NellowTCS/TeleporterDashLevels",
   RAW_CONTENT_BASE:
@@ -35,32 +43,7 @@ const LevelLoader = {
 
   // // Load from IndexedDB
   async loadFromIndexedDB(filename) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-
-      try {
-        const transaction = this.db.transaction([this.STORE_NAME], "readonly");
-        const store = transaction.objectStore(this.STORE_NAME);
-        const request = store.get(filename);
-
-        request.onsuccess = () => {
-          if (request.result) {
-            resolve(request.result);
-          } else {
-            reject(new Error("Level not found in local storage"));
-          }
-        };
-
-        request.onerror = () => {
-          reject(request.error);
-        };
-      } catch (error) {
-        reject(error);
-      }
-    });
+    return await DatabaseManager.loadFromIndexedDB(filename);
   },
 
   // // Load Test Level
@@ -118,36 +101,6 @@ const LevelLoader = {
     });
   },
 
-  // // Initialize Database
-  async initDB() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-
-      request.onerror = () => {
-        console.error("Database error:", request.error);
-        reject(new Error("Failed to open database"));
-      };
-
-      request.onsuccess = (event) => {
-        this.db = event.target.result;
-        console.log("Database opened successfully");
-        resolve(this.db);
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-          db.createObjectStore(this.STORE_NAME);
-          console.log("Object store created");
-        }
-        if (!db.objectStoreNames.contains("scores")) {
-          db.createObjectStore("scores");
-          console.log("Scores object store created");
-        }
-      };
-    });
-  },
-
   // // Initialize Level Data
   async initializeLevelData() {
     try {
@@ -158,8 +111,8 @@ const LevelLoader = {
         console.log("Loading test level from editor");
         const testData = await this.loadTestLevel();
         await this.processLevelData(testData);
-        requestAnimationFrame(updateGame);
-        if (isPracticeMode) {
+        const state = GameState.getState();
+        if (state.isPracticeMode) {
           this.initializePracticeMode();
         }
         return;
@@ -172,10 +125,7 @@ const LevelLoader = {
         console.log("Loading level:", levelTitle);
 
         try {
-          if (!this.db) {
-            throw new Error("Database not initialized");
-          }
-
+          await DatabaseManager.initDB();
           const level = await this.loadFromIndexedDB(levelTitle);
           console.log("Level loaded from IndexedDB:", level);
 
@@ -201,7 +151,7 @@ const LevelLoader = {
           showLoadingError("Invalid level number");
           return;
         }
-        levelId = levelNumber; // Set the level ID here
+        GameState.setState({ levelId: levelNumber }); // Set the level ID here
         console.log("Loading level:", levelNumber);
 
         // Dynamically load the level script file
@@ -216,8 +166,8 @@ const LevelLoader = {
               console.log("Level data found:", window.levelData);
               this.processLevelData(window.levelData)
                 .then(() => {
-                  requestAnimationFrame(updateGame);
-                  if (isPracticeMode) {
+                  const state = GameState.getState();
+                  if (state.isPracticeMode) {
                     this.initializePracticeMode();
                   }
                   resolve();
@@ -244,11 +194,12 @@ const LevelLoader = {
     }
   },
 
-  // // Process Level Data
   async processLevelData(data) {
     if (!data || !data.matrix) {
       throw new Error("Invalid level data: missing matrix");
     }
+
+    console.log("Processing level data:", data); // Debug log
 
     // For built-in levels, first row is already the color row
     GameState.setState({
@@ -257,8 +208,9 @@ const LevelLoader = {
     });
 
     // Process colors
-    colorSteps.length = 0;
-    const uniqueColors = [...new Set(levelColorRow)]
+    levelColorSteps.length = 0;
+    const state = GameState.getState();
+    const uniqueColors = [...new Set(state.levelColorRow)]
       .filter((code) => {
         // Handle both simple color codes and block properties
         if (typeof code === "string") {
@@ -280,24 +232,24 @@ const LevelLoader = {
     uniqueColors.forEach((code) => {
       const color = COLOR_MAP[code];
       if (color) {
-        colorSteps.push(color);
+        levelColorSteps.push(color);
       }
     });
 
     // If we only have one color, duplicate it
-    if (colorSteps.length === 1) {
+    if (levelColorSteps.length === 1) {
       console.log("Only one color found, duplicating it");
-      colorSteps.push(colorSteps[0]);
+      levelColorSteps.push(levelColorSteps[0]);
     }
 
     // Reset color transition
-    colorIndex = 0;
-    transitionFactor = 0;
+    levelColorIndex = 0;
+    levelTransitionFactor = 0;
 
     // Set initial background color
     const gameContainer = document.getElementById("gameContainer");
-    if (gameContainer && colorSteps.length > 0) {
-      gameContainer.style.backgroundColor = colorSteps[0];
+    if (gameContainer && levelColorSteps.length > 0) {
+      gameContainer.style.backgroundColor = levelColorSteps[0];
     }
 
     // Set other level data
@@ -308,39 +260,60 @@ const LevelLoader = {
     });
 
     // Handle music data
+    console.log("Music data - musicValue:", data.musicValue, "music:", data.music, "musicData:", !!data.musicData);
     if (data.musicValue === "custom" && data.musicData) {
+      console.log("Using custom music");
       const blob = new Blob([data.musicData.data], {
         type: data.musicData.type,
       });
-      levelMusic = URL.createObjectURL(blob);
-      console.log("LevelMusic: ", levelMusic);
-    } else if (isPracticeMode) {
-      GameState.setState({ levelMusic: "./public/Sound/Basic Soundeffects/practicetd.ogg" });
-      console.log("LevelMusic: ", levelMusic);
+      const musicUrl = URL.createObjectURL(blob);
+      GameState.setState({ levelMusic: musicUrl });
+      console.log("LevelMusic: ", musicUrl);
+    } else if (GameState.getState().isPracticeMode) {
+      console.log("Using practice mode music");
+      GameState.setState({ levelMusic: "./Sound/Basic Soundeffects/practicetd.ogg" });
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (
       data.musicValue &&
       data.musicValue.startsWith("./Sound/Level Soundtracks/")
     ) {
-      levelMusic = `${data.musicValue}`;
-      console.log("LevelMusic: ", levelMusic);
+      console.log("Using musicValue that starts with ./Sound/Level Soundtracks/");
+      GameState.setState({ levelMusic: data.musicValue });
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (data.musicValue) {
-      GameState.setState({ levelMusic: `./public/Sound/Level Soundtracks/${data.musicValue}` });
-      console.log("LevelMusic: ", levelMusic);
+      console.log("Using musicValue with public prefix");
+      // If musicValue is already a full path, use it directly
+      if (data.musicValue.includes('/')) {
+        GameState.setState({ levelMusic: data.musicValue });
+      } else {
+        GameState.setState({ levelMusic: `./Sound/Level Soundtracks/${data.musicValue}` });
+      }
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (data.musicData) {
-      levelMusic = `${data.musicData}`;
-      console.log("LevelMusic: ", levelMusic);
+      console.log("Using musicData directly");
+      GameState.setState({ levelMusic: data.musicData });
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (
       data.music &&
       data.music.startsWith("../Sound/Level Soundtracks/")
     ) {
-      levelMusic = `${data.music}`;
-      console.log("LevelMusic: ", levelMusic);
+      console.log("Using music that starts with ../Sound/Level Soundtracks/");
+      GameState.setState({ levelMusic: data.music });
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (data.music) {
-      levelMusic = `../Sound/Level Soundtracks/${data.music}`;
-      console.log("LevelMusic: ", levelMusic);
+      console.log("Using music with path check");
+      // If music is already a full path, use it directly
+      if (data.music.includes('/')) {
+        GameState.setState({ levelMusic: data.music });
+      } else {
+        // Otherwise, construct the path
+        GameState.setState({ levelMusic: `../Sound/Level Soundtracks/${data.music}` });
+      }
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else {
-      levelMusic = "./Sound/Level Soundtracks/level1.ogg";
-      console.log("LevelMusic: ", levelMusic);
+      console.log("Using fallback music");
+      GameState.setState({ levelMusic: "./Sound/Level Soundtracks/level1.ogg" });
+      console.log("LevelMusic: ", GameState.getState().levelMusic);
     }
 
     // Ensure Safari gets .mp3 instead of .ogg
@@ -349,15 +322,13 @@ const LevelLoader = {
       console.log("LevelMusic: ", levelMusic);
     }
 
-    levelId = data.id;
-    document.title = levelTitle;
+    GameState.setState({ levelId: data.id });
+    const currentState = GameState.getState();
+    document.title = currentState.levelTitle;
 
     // Initialize audio with the new level music
-    await AudioManager.setup(levelMusic);
-
-    // Initialize game systems
-    requestAnimationFrame(updateGame);
-    calculateTotalBlocks();
+    const audioState = GameState.getState();
+    await AudioManager.setup(audioState.levelMusic);
 
     // Reset game state
     GameState.setState({

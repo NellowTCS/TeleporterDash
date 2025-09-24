@@ -1,45 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Level Store - Teleporter Dash</title>
-    <link rel="stylesheet" href="./styles/global.css" />
-    <link rel="stylesheet" href="./styles/levelstore.css" />
-        <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
-    <script src="./src/gameState.js"></script>
-  </head>
-  </head>
-  <body>
-    <button class="back-button" onclick="window.location.href='./index.html'">
-      Back to Menu
-    </button>
 
-    <div class="store-container">
-      <div class="header">
-        <h1>Level Store</h1>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Level Store - Teleporter Dash</title>
+  <link rel="stylesheet" href="./styles/global.css" />
+  <link rel="stylesheet" href="./styles/levelstore.css" />
 
-      <div class="search-bar">
-        <input
-          type="text"
-          placeholder="Search levels..."
-          onkeyup="searchLevels(this.value)"
-        />
-      </div>
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>
+    eruda.init();
+  </script>
 
-      <div class="filters">
-        <button onclick="filterLevels('newest')">Newest</button>
-        <button onclick="filterLevels('popular')">Most Popular</button>
-        <button onclick="filterLevels('difficulty')">By Difficulty</button>
-      </div>
+  <script type="module" src="./src/levelPreview.js"></script>
+  <script type="module" src="./src/databaseManager.js"></script>
+  <script type="module" src="./src/gameState.js"></script>
+</head>
 
-      <div class="level-grid" id="levelGrid">
-        <!-- Level cards will be dynamically inserted here -->
-      </div>
+<body>
+  <button class="back-button" onclick="window.location.href='./index.html'">Back to Menu</button>
+
+  <div class="store-container">
+    <div class="header">
+      <h1>Level Store</h1>
     </div>
 
-    <script src="./src/levelstore.js"></script>
-  </body>
+    <div class="search-bar">
+      <input type="text" placeholder="Search levels..." onkeyup="searchLevels(this.value)">
+    </div>
+
+    <div class="filters">
+      <button onclick="filterLevels('newest')">Newest</button>
+      <button onclick="filterLevels('popular')">Most Popular</button>
+      <button onclick="filterLevels('difficulty')">By Difficulty</button>
+    </div>
+
+    <div class="level-grid" id="levelGrid">
+      <!-- Level cards will be dynamically inserted here -->
+    </div>
+
+    <script type="module" src="./src/levelstore.js"></script>
+</body>
+
 </html>
