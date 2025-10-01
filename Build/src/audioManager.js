@@ -225,4 +225,59 @@ export const AudioManager = {
       }
     });
   },
+
+  // // Editor Music Path Resolution
+  getMusicPath(musicValue, forExport = false, isTest = false) {
+    if (musicValue === "custom") {
+      if (GameState.current.editor.customMusicFile) {
+        if (forExport || GameState.current.editor.customMusicFile.isImported) {
+          // For export or imported music, use the filename
+          return `../Sound/Level Soundtracks/${GameState.current.editor.customMusicFile.name}`;
+        } else {
+          // For preview or test of uploaded music, create a new blob URL
+          const blob = new Blob([GameState.current.editor.customMusicFile.data], {
+            type: GameState.current.editor.customMusicFile.type,
+          });
+          return URL.createObjectURL(blob);
+        }
+      }
+    } else {
+      return `../Sound/Level Soundtracks/${musicValue}`;
+    }
+    return "../Sound/Level Soundtracks/level1.ogg";
+  },
+
+  // // Create Custom Music Blob URL
+  createCustomMusicBlob(customMusicFile) {
+    if (!customMusicFile || !customMusicFile.data) return null;
+    const blob = new Blob([customMusicFile.data], {
+      type: customMusicFile.type,
+    });
+    return URL.createObjectURL(blob);
+  },
+
+  // // Preview Music Controls
+  playPreview(audioElement, musicPath) {
+    // Cleanup previous blob URL if it exists
+    if (audioElement.src.startsWith("blob:")) {
+      URL.revokeObjectURL(audioElement.src);
+    }
+
+    audioElement.src = musicPath;
+    console.log("Setting music path:", musicPath);
+
+    return audioElement.play().catch((error) => {
+      console.error("Failed to play music:", error);
+      throw error;
+    });
+  },
+
+  stopPreview(audioElement) {
+    // Cleanup blob URL when stopping
+    if (audioElement.src.startsWith("blob:")) {
+      URL.revokeObjectURL(audioElement.src);
+    }
+    audioElement.pause();
+    audioElement.currentTime = 0;
+  },
 };
