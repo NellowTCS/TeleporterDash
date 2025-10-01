@@ -1,6 +1,6 @@
 
 // Rotation controls
-import { updateSelectedColorIndicator } from "../editorColorPicker.js";
+import { updateSelectedColorIndicator } from "./editorColorPicker.js";
 import { GameState } from "../gameState.js";
 
 // Handle Rotation Display and Controls

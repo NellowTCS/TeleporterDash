@@ -1,7 +1,7 @@
 import { DatabaseManager } from "../databaseManager";
 import { GameState } from "../gameState";
 import { AudioManager } from "../audioManager";
-import { createGrid, updateGridVisuals } from "../editorGrid";
+import { createGrid, updateGridVisuals } from "./editorGrid";
 
 // ===== Draft Management =====
 
@@ -214,7 +214,7 @@ export const DraftManager = {
   async saveDraftWrapper(title = "Untitled Draft") {
     const levelNameInput = document.getElementById("levelName");
     const musicSelect = document.getElementById("musicSelect");
-    return await this.saveDraft(title, levelNameInput, musicSelect);
+    return await DraftManager.saveDraft(title, levelNameInput, musicSelect);
   },
 
   // // Load Draft (wrapper for global access)
@@ -226,7 +226,7 @@ export const DraftManager = {
     const musicPreview = document.getElementById("musicPreview");
     const currentDraftIndicator = document.getElementById("currentDraftIndicator");
 
-    return await this.loadDraft(
+    return await DraftManager.loadDraft(
       draftId,
       grid,
       gridContainer,
@@ -239,20 +239,20 @@ export const DraftManager = {
 
   // // Delete Draft (wrapper for global access)
   async deleteDraftWrapper(draftId) {
-    return await this.deleteDraft(draftId);
+    return await DraftManager.deleteDraft(draftId);
   },
 
   // // Load Drafts List (wrapper with DOM manipulation)
   async loadDraftsListWrapper() {
     try {
-      const drafts = await this.loadDraftsList();
+      const drafts = await DraftManager.loadDraftsList();
       const draftsList = document.getElementById("draftsList");
       draftsList.innerHTML = "";
 
       drafts.forEach((draft) => {
         const draftElement = document.createElement("div");
         draftElement.className = "draft-item";
-        draftElement.innerHTML = this.createDraftItemTemplate(draft);
+        draftElement.innerHTML = DraftManager.createDraftItemTemplate(draft);
         draftsList.appendChild(draftElement);
       });
 
@@ -265,10 +265,10 @@ export const DraftManager = {
 
   // // Schedule Auto Save (wrapper)
   scheduleAutoSaveWrapper() {
-    return this.scheduleAutoSave(async () => {
+    return DraftManager.scheduleAutoSave(async () => {
       if (GameState.current.editor.hasUnsavedChanges) {
         try {
-          await this.saveDraftWrapper();
+          await DraftManager.saveDraftWrapper();
         } catch (error) {
           console.error("Auto-save failed:", error);
         }
@@ -279,6 +279,6 @@ export const DraftManager = {
   // // Clear Current Draft Indicator (wrapper)
   clearCurrentDraftIndicatorWrapper() {
     const currentDraftIndicator = document.getElementById("currentDraftIndicator");
-    this.clearCurrentDraftIndicator(currentDraftIndicator);
+    DraftManager.clearCurrentDraftIndicator(currentDraftIndicator);
   },
 };

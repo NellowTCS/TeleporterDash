@@ -49,7 +49,7 @@ initializeColorPickers();
 
 // ===== Export =====
 // // Initialize the editor
-createGrid(grid, DraftManager.scheduleAutoSaveWrapper);
+createGrid(grid, DraftManager.scheduleAutoSaveWrapper.bind(DraftManager));
 
 // // Checks
 // // // Next Level ID
@@ -534,32 +534,32 @@ DOMManager.addEvent("#backToMenuBtn", "click", () => {
 DOMManager.addEvent(
   "#gridContainer",
   "click",
-  DraftManager.clearCurrentDraftIndicatorWrapper
+  DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager)
 );
 DOMManager.addEvent(
   "#levelName",
   "input",
-  DraftManager.clearCurrentDraftIndicatorWrapper
+  DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager)
 );
 DOMManager.addEvent(
   "#authorName",
   "input",
-  DraftManager.clearCurrentDraftIndicatorWrapper
+  DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager)
 );
 DOMManager.addEvent(
   "#difficulty",
   "change",
-  DraftManager.clearCurrentDraftIndicatorWrapper
+  DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager)
 );
 DOMManager.addEvent(
   "#musicSelect",
   "change",
-  DraftManager.clearCurrentDraftIndicatorWrapper
+  DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager)
 );
 DOMManager.addEvent(
   "#customMusicInput",
   "change",
-  DraftManager.clearCurrentDraftIndicatorWrapper
+  DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager)
 );
 
 // // Unsaved Changes Check
