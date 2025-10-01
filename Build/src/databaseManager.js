@@ -6,6 +6,8 @@ export const DatabaseManager = {
   DB_NAME: "TeleporterDashDB",
   DB_VERSION: 2,
   STORE_NAME: "downloadedLevels",
+  DRAFTS_STORE: "levelDrafts",
+  TEST_STORE: "testLevel",
 
   initDB() {
     return new Promise((resolve, reject) => {
@@ -31,6 +33,14 @@ export const DatabaseManager = {
         if (!db.objectStoreNames.contains("scores")) {
           db.createObjectStore("scores");
           console.log("Scores object store created");
+        }
+        if (!db.objectStoreNames.contains(this.DRAFTS_STORE)) {
+          db.createObjectStore(this.DRAFTS_STORE, { keyPath: "id", autoIncrement: true });
+          console.log("Drafts object store created");
+        }
+        if (!db.objectStoreNames.contains(this.TEST_STORE)) {
+          db.createObjectStore(this.TEST_STORE, { keyPath: "id" });
+          console.log("Test Levels object store created");
         }
       };
     });
@@ -132,6 +142,84 @@ export const DatabaseManager = {
       const request = store.get(filename);
       request.onsuccess = () => resolve(!!request.result);
       request.onerror = () => resolve(false);
+    });
+  },
+
+  async saveDraft(draftData) {
+    if (!this.db) {
+      await this.initDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.DRAFTS_STORE], "readwrite");
+      const store = transaction.objectStore(this.DRAFTS_STORE);
+      const request = store.add(draftData);
+      request.onsuccess = () => resolve(request.result); // Return the key (ID)
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async getDrafts() {
+    if (!this.db) {
+      await this.initDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.DRAFTS_STORE], "readonly");
+      const store = transaction.objectStore(this.DRAFTS_STORE);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async loadDraft(draftId) {
+    if (!this.db) {
+      await this.initDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.DRAFTS_STORE], "readonly");
+      const store = transaction.objectStore(this.DRAFTS_STORE);
+      const request = store.get(draftId);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async deleteDraft(draftId) {
+    if (!this.db) {
+      await this.initDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.DRAFTS_STORE], "readwrite");
+      const store = transaction.objectStore(this.DRAFTS_STORE);
+      const request = store.delete(draftId);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async saveTestLevel(testData) {
+    if (!this.db) {
+      await this.initDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.TEST_STORE], "readwrite");
+      const store = transaction.objectStore(this.TEST_STORE);
+      const request = store.put(testData);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async loadTestLevel(testId) {
+    if (!this.db) {
+      await this.initDB();
+    }
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.TEST_STORE], "readonly");
+      const store = transaction.objectStore(this.TEST_STORE);
+      const request = store.get(testId);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
   }
 };

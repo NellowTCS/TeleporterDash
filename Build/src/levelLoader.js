@@ -48,57 +48,27 @@ export const LevelLoader = {
 
   // // Load Test Level
   async loadTestLevel() {
-    const dbName = "LevelEditorDB";
-    const testStore = "testLevel";
-
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(dbName, 1);
-
-      request.onerror = () => reject(new Error("Failed to open database"));
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        if (!db.objectStoreNames.contains(testStore)) {
-          db.createObjectStore(testStore, { keyPath: "currentTest" });
-        }
-      };
-
-      request.onsuccess = (event) => {
-        const db = event.target.result;
-        const transaction = db.transaction([testStore], "readonly");
-        const store = transaction.objectStore(testStore);
-        const getRequest = store.get("currentTest");
-
-        getRequest.onsuccess = () => {
-          const testData = getRequest.result;
-          if (testData) {
-            resolve({
-              matrix: testData.matrix,
-              title: "Test Level",
-              author: testData.author,
-              difficulty: testData.difficulty,
-              musicValue: testData.musicValue,
-              musicData: testData.musicData,
-              id: "test",
-              colorTransitionDuration: 2.0,
-              colorTransitionDelay: 0.2,
-            });
-          } else {
-            reject(new Error("No test level found"));
-          }
+    try {
+      const testData = await DatabaseManager.loadTestLevel("currentTest");
+      if (testData) {
+        return {
+          matrix: testData.matrix,
+          title: "Test Level",
+          author: testData.author,
+          difficulty: testData.difficulty,
+          musicValue: testData.musicValue,
+          musicData: testData.musicData,
+          id: "test",
+          colorTransitionDuration: 2.0,
+          colorTransitionDelay: 0.2,
         };
-
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains(testStore)) {
-            db.createObjectStore(testStore, { keyPath: "currentTest" });
-          }
-        };
-
-        getRequest.onerror = () =>
-          reject(new Error("Failed to load test level"));
-      };
-    });
+      } else {
+        throw new Error("No test level found");
+      }
+    } catch (error) {
+      console.error("Error loading test level:", error);
+      throw error;
+    }
   },
 
   // // Initialize Level Data
