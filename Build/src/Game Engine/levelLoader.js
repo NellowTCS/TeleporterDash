@@ -1,15 +1,22 @@
 // Level Loader for Teleporter Dash
-import { GameState } from './gameState.js';
-import { COLOR_MAP, CONSTANTS } from './constants.js';
-import { AudioManager } from './audioManager.js';
-import { DatabaseManager } from './databaseManager.js';
+import { GameState } from '../Utilities/gameState.js';
+import { COLOR_MAP, CONSTANTS } from '../Utilities/constants.js';
+import { AudioManager } from '../Utilities/audioManager.js';
+import { DatabaseManager } from '../Utilities/databaseManager.js';
 import { SettingsManager } from './settingsManager.js';
+import { showLoadingError, showError } from '../Utilities/notificationManager.js';
+import { DOMManager } from '../Utilities/domManager.js';
 
 // Global variables needed for level loading
 let levelColorSteps = [];
 let levelColorIndex = 0;
 let levelTransitionFactor = 0;
 let levelMusic = null;
+
+const player = DOMManager.getElement("#player");
+const progressFill = DOMManager.getElement("#progressFill");
+const progressText = DOMManager.getElement("#progressText");
+
 
 export const LevelLoader = {
   // // "Initialize" Variables
@@ -132,8 +139,11 @@ export const LevelLoader = {
         await new Promise((resolve, reject) => {
           levelScript.onload = () => {
             console.log("Level script loaded");
+            // @ts-ignore
             if (window.levelData) {
+              // @ts-ignore
               console.log("Level data found:", window.levelData);
+              // @ts-ignore
               this.processLevelData(window.levelData)
                 .then(() => {
                   const state = GameState.getState();
@@ -217,7 +227,7 @@ export const LevelLoader = {
     levelTransitionFactor = 0;
 
     // Set initial background color
-    const gameContainer = document.getElementById("gameContainer");
+    const gameContainer = DOMManager.getElement("#gameContainer");
     if (gameContainer && levelColorSteps.length > 0) {
       gameContainer.style.backgroundColor = levelColorSteps[0];
     }
@@ -324,11 +334,11 @@ export const LevelLoader = {
     player.style.transform = "rotate(0deg)";
 
     // Reset camera position
-    cameraOffsetY = 0;
+    GameState.setState({ cameraOffsetY: 0 });
   },
   // // Initialize Practice Mode
   initializePracticeMode() {
-    const gameSpeedSelect = document.getElementById("gameSpeed");
+    const gameSpeedSelect = DOMManager.getElement("#gameSpeed");
     if (gameSpeedSelect) {
       gameSpeedSelect.disabled = false;
       const savedSpeed = SettingsManager.current.gameSpeed;

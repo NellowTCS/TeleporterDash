@@ -1,7 +1,7 @@
 
 // Rotation controls
 import { updateSelectedColorIndicator } from "./editorColorPicker.js";
-import { GameState } from "../gameState.js";
+import { GameState } from "../Utilities/gameState.js";
 
 // Handle Rotation Display and Controls
 const tools = document.querySelectorAll(".tool");
@@ -53,7 +53,9 @@ document.querySelectorAll(".tool").forEach((tool) => {
       colorPickerGroup.style.display = "block";
       // Set initial color if not already set
       const sectionColorPicker = document.getElementById("colorPicker");
+      // @ts-ignore
       if (!sectionColorPicker.value) {
+        // @ts-ignore
         sectionColorPicker.value =
           GameState.current.editor.selectedColor.toString();
       }

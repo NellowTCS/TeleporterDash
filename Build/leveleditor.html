@@ -9,7 +9,6 @@
     <script>
       eruda.init();
     </script>
-    <script type="module" src="./src/gameState.js"></script>
   </head>
   <body>
     <h1 class="header">Teleporter Dash Level Creator</h1>
@@ -108,6 +107,27 @@
           </div>
 
           <div class="control-group">
+            <label>Grid Zoom:</label>
+            <div class="zoom-controls">
+              <button id="gridZoomOut" class="zoom-btn" title="Grid Zoom Out (Ctrl+-)">−</button>
+              <span id="gridZoomLevel">100%</span>
+              <button id="gridZoomIn" class="zoom-btn" title="Grid Zoom In (Ctrl++)">+</button>
+              <button id="gridZoomReset" class="zoom-reset-btn" title="Reset Grid Zoom">Reset</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>Edit:</label>
+            <div class="edit-controls">
+              <button id="undoBtn" class="edit-btn" title="Undo (Ctrl+Z)">↶</button>
+              <button id="redoBtn" class="edit-btn" title="Redo (Ctrl+Y)">↷</button>
+              <button id="copyBtn" class="edit-btn" title="Copy (Ctrl+C)">📋</button>
+              <button id="pasteBtn" class="edit-btn" title="Paste (Ctrl+V)">📄</button>
+              <span class="edit-hint">Use Empty tool + Shift+drag to select • Right-click for menu</span>
+            </div>
+          </div>
+
+          <div class="control-group">
             <label>Tools:</label>
             <div class="tool-group">
               <button class="tool active" data-type="0">Empty</button>
@@ -154,7 +174,6 @@
       </div>
     </div>
     <audio id="musicPreview" src="./Sound/Level Soundtracks/"></audio>
-    <script src="https://cdn.jsdelivr.net/gh/dduponchel/jszip@issue477/dist/jszip.js"></script>
     <script type="module" src="./src/leveleditor.js"></script>
   </body>
 </html>

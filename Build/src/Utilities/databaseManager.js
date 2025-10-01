@@ -19,13 +19,13 @@ export const DatabaseManager = {
       };
 
       request.onsuccess = (event) => {
-        this.db = event.target.result;
+        this.db = /** @type {IDBOpenDBRequest} */ (event.target).result;
         console.log("Database opened successfully");
         resolve(this.db);
       };
 
       request.onupgradeneeded = (event) => {
-        const db = event.target.result;
+        const db = /** @type {IDBOpenDBRequest} */ (event.target).result;
         if (!db.objectStoreNames.contains(this.STORE_NAME)) {
           db.createObjectStore(this.STORE_NAME, { keyPath: "filename" });
           console.log("Object store created");
@@ -225,4 +225,5 @@ export const DatabaseManager = {
 };
 
 // Make it global
+// @ts-ignore
 window.DatabaseManager = DatabaseManager;

@@ -1,6 +1,7 @@
 // Audio Manager for Teleporter Dash
 import { GameState } from './gameState.js';
-import { SettingsManager } from './settingsManager.js';
+import { SettingsManager } from '../Game Engine/settingsManager.js';
+import { DOMManager } from './domManager.js';
 
 export const AudioManager = {
   // // "Initialize" Variables
@@ -105,7 +106,8 @@ export const AudioManager = {
       this.practiceMusic.loop = true;
 
       // Set volumes
-      const volumeLevel = document.getElementById("volumeSlider").value / 100;
+      const volumeSlider = DOMManager.getElement("#volumeSlider");
+      const volumeLevel = volumeSlider ? (volumeSlider.value / 100) : 0.9; // Default to 90% if element not found
       this.backgroundMusic.volume = volumeLevel * 0.6;
       this.practiceMusic.volume = volumeLevel * 0.6;
       this.jumpSound.volume = volumeLevel * 0.2;

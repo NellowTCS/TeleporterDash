@@ -47,11 +47,46 @@ export const DOMManager = {
     // Draft elements
     currentDraftIndicator: "#currentDraftIndicator",
     draftsList: "#draftsList",
+
+    // Menu elements
+    menuMusic: "#menu-music",
+    volumeSlider: "#volumeSlider",
+    volumeLabel: "#volume-label",
+    builtInLevelTemplate: "#built-in-level-template",
+    onlineLevelTemplate: "#online-level-template",
+    levelDisplayTemplate: "#level-display-template",
+    menu: ".menu",
+    levelSelector: ".level-selector",
+
+    // Game elements
+    gameContainer: "#gameContainer",
+    player: "#player",
+    cameraContainer: "#cameraContainer",
+    progressText: "#progressText",
+    progressFill: "#progressFill",
+    pauseMenu: "#pauseMenu",
+    levelComplete: "#levelComplete",
+    gameOver: "#gameOver",
+    muteButton: "#muteButton",
+    nextLevelBtn: "#nextLevelBtn",
+    heightIndicator: "#heightIndicator",
+    playerIndicator: "#playerIndicator",
+    settingsMenu: "#settingsMenu",
+    volumeValue: "#volumeValue",
+
+    // Level store elements
+    levelGrid: "#levelGrid",
+
+    // Game engine elements
+    scoreboard: "#scoreboard",
+    menuScoreboard: "#menuScoreboard",
+    gameSpeed: "#gameSpeed",
   },
 
   // Get cached element or query and cache it
   getElement(selector) {
-    if (!this.elements[selector]) {
+    // If not cached or cached as null, try to query again
+    if (this.elements[selector] === undefined || this.elements[selector] === null) {
       this.elements[selector] = document.querySelector(selector);
     }
     return this.elements[selector];

@@ -1,7 +1,8 @@
-import { DatabaseManager } from "../databaseManager";
-import { GameState } from "../gameState";
-import { AudioManager } from "../audioManager";
-import { createGrid, updateGridVisuals } from "./editorGrid";
+import { DatabaseManager } from "../Utilities/databaseManager";
+import { GameState } from "../Utilities/gameState";
+import { AudioManager } from "../Utilities/audioManager";
+import { DOMManager } from "../Utilities/domManager.js";
+import { createGrid, updateGridVisuals } from "./editorGrid.js";
 
 // ===== Draft Management =====
 
@@ -23,8 +24,8 @@ export const DraftManager = {
       const draftData = {
         title: levelNameInput.value || "untitled",
         matrix: GameState.current.editor.levelMatrix,
-        author: document.getElementById("authorName").value || "Unknown Author",
-        difficulty: document.getElementById("difficulty").value || "Normal",
+        author: DOMManager.getElement("#authorName").value || "Unknown Author",
+        difficulty: DOMManager.getElement("#difficulty").value || "Normal",
         musicValue: musicValue || "level1.ogg",
         lastModified: new Date().toISOString(),
         customMusicFile: GameState.current.editor.customMusicFile,
@@ -60,10 +61,10 @@ export const DraftManager = {
         });
 
         // Update input values
-        const gridWidthInput = document.getElementById("gridWidth");
-        const gridHeightInput = document.getElementById("gridHeight");
-        gridWidthInput.value = GameState.current.editor.gridWidth;
-        gridHeightInput.value = GameState.current.editor.gridHeight;
+        const gridWidthInput = DOMManager.getElement("#gridWidth");
+        const gridHeightInput = DOMManager.getElement("#gridHeight");
+        gridWidthInput.value = GameState.current.editor.gridWidth.toString();
+        gridHeightInput.value = GameState.current.editor.gridHeight.toString();
 
         // Update grid container height
         const rowHeight = 55;
@@ -71,11 +72,18 @@ export const DraftManager = {
           GameState.current.editor.gridHeight * rowHeight + 2;
         gridContainer.style.height = containerHeight + "px";
 
-        // Update other fields
-        levelNameInput.value = draft.title || "";
-        document.getElementById("authorName").value = draft.author || "";
-        document.getElementById("difficulty").value =
-          draft.difficulty || "Normal";
+        // Update other fields with null checks
+        if (levelNameInput) {
+          levelNameInput.value = draft.title || "";
+        }
+        const authorNameEl = DOMManager.getElement("#authorName");
+        if (authorNameEl) {
+          authorNameEl.value = draft.author || "";
+        }
+        const difficultyEl = DOMManager.getElement("#difficulty");
+        if (difficultyEl) {
+          difficultyEl.value = draft.difficulty || "Normal";
+        }
 
         // Update music selection and handle custom music
         await this.restoreDraftMusic(draft, musicSelect, musicPreview);
@@ -157,12 +165,12 @@ export const DraftManager = {
   restoreDraftColorState(draft) {
     if (draft.selectedColor !== undefined) {
       GameState.setEditorState({ selectedColor: draft.selectedColor });
-      const sectionColorPicker = document.getElementById("colorPicker");
+      const sectionColorPicker = DOMManager.getElement("#colorPicker");
       sectionColorPicker.value = draft.selectedColor.toString();
     }
     if (draft.selectedBlockColor !== undefined) {
       GameState.setEditorState({ selectedBlockColor: draft.selectedBlockColor });
-      const blockColorPicker = document.getElementById("blockColorPicker");
+      const blockColorPicker = DOMManager.getElement("#blockColorPicker");
       blockColorPicker.value = draft.selectedBlockColor.toString();
     }
   },
@@ -183,7 +191,7 @@ export const DraftManager = {
     try {
       const drafts = await DatabaseManager.getDrafts();
       // Sort by lastModified in descending order (most recent first)
-      drafts.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
+      drafts.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
       return drafts;
     } catch (error) {
       console.error("Error loading drafts list:", error);
@@ -212,19 +220,19 @@ export const DraftManager = {
 
   // // Save Draft (wrapper)
   async saveDraftWrapper(title = "Untitled Draft") {
-    const levelNameInput = document.getElementById("levelName");
-    const musicSelect = document.getElementById("musicSelect");
+    const levelNameInput = DOMManager.getElement("#levelName");
+    const musicSelect = DOMManager.getElement("#musicSelect");
     return await DraftManager.saveDraft(title, levelNameInput, musicSelect);
   },
 
   // // Load Draft (wrapper for global access)
   async loadDraftWrapper(draftId) {
-    const grid = document.getElementById("grid");
-    const gridContainer = document.getElementById("gridContainer");
-    const levelNameInput = document.getElementById("levelName");
-    const musicSelect = document.getElementById("musicSelect");
-    const musicPreview = document.getElementById("musicPreview");
-    const currentDraftIndicator = document.getElementById("currentDraftIndicator");
+    const grid = DOMManager.getElement("#grid");
+    const gridContainer = DOMManager.getElement("#gridContainer");
+    const levelNameInput = DOMManager.getElement("#levelNameInput");
+    const musicSelect = DOMManager.getElement("#musicSelect");
+    const musicPreview = DOMManager.getElement("#musicPreview");
+    const currentDraftIndicator = DOMManager.getElement("#currentDraftIndicator");
 
     return await DraftManager.loadDraft(
       draftId,
@@ -246,7 +254,11 @@ export const DraftManager = {
   async loadDraftsListWrapper() {
     try {
       const drafts = await DraftManager.loadDraftsList();
-      const draftsList = document.getElementById("draftsList");
+      const draftsList = DOMManager.getElement("#draftsList");
+      if (!draftsList) {
+        console.error("Element with ID 'draftsList' not found");
+        return [];
+      }
       draftsList.innerHTML = "";
 
       drafts.forEach((draft) => {
@@ -278,7 +290,7 @@ export const DraftManager = {
 
   // // Clear Current Draft Indicator (wrapper)
   clearCurrentDraftIndicatorWrapper() {
-    const currentDraftIndicator = document.getElementById("currentDraftIndicator");
+    const currentDraftIndicator = DOMManager.getElement("#currentDraftIndicator");
     DraftManager.clearCurrentDraftIndicator(currentDraftIndicator);
   },
 };

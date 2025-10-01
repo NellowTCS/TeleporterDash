@@ -1,6 +1,7 @@
 // Settings for Teleporter Dash
-import { GameState } from './gameState.js';
-import { AudioManager } from './audioManager.js';
+import { GameState } from '../Utilities/gameState.js';
+import { AudioManager } from '../Utilities/audioManager.js';
+import { setupControls } from '../gameloader.js';
 
 export const SettingsManager = {
   current: {

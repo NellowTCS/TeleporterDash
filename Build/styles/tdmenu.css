@@ -33,21 +33,19 @@ body {
 }
 
 .level-selector {
-  width: calc(1200px * var(--level-selector-scale)); /* Adjusted base width */
-  max-width: 100vw;
-  height: calc(
-    1000px * var(--level-selector-scale)
-  ); /* Increased base height */
-  max-height: 100vh; /* Increased for mobile */
+  width: 150vw;
+  max-width: 1200px;
+  height: 120vh;
+  max-height: 800px;
   display: flex;
   flex-direction: column;
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) scale(var(--level-selector-scale));
+  transform: translate(-50%, -50%) scale(0.8);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  padding: calc(20px * var(--level-selector-scale)); /* Increased padding */
+  padding: 20px;
 }
 
 .built-in-levels,
@@ -69,7 +67,7 @@ body {
   align-items: center;
   justify-content: center;
   flex: 1;
-  margin: calc(30px * var(--level-selector-scale)) 0;
+  margin: 20px 0;
 }
 
 h1 {
@@ -80,7 +78,8 @@ h1 {
 }
 
 .level-selector h1 {
-  font-size: calc(2.5rem * var(--level-selector-scale) * var(--content-scale));
+  font-size: 2rem;
+  margin: 0 0 1rem 0;
 }
 
 h2 {
@@ -126,21 +125,19 @@ button:active {
 .level-navigation {
   display: flex;
   flex-direction: column;
-  gap: calc(13px * var(--level-selector-scale) * var(--content-scale));
+  gap: 10px;
   width: 90%;
-  max-width: calc(90vw * var(--level-selector-scale));
-  margin: calc(25px * var(--level-selector-scale)) auto;
+  max-width: 600px;
+  margin: 20px auto;
 }
 
 .level-navigation button {
   width: 100%;
-  padding: calc(25px * var(--level-selector-scale) * var(--content-scale));
-  font-size: calc(2rem * var(--level-selector-scale) * var(--content-scale));
+  padding: 15px 20px;
+  font-size: 1.2rem;
   background: var(--gradient);
   border: none;
-  border-radius: calc(
-    15px * var(--level-selector-scale) * var(--content-scale)
-  );
+  border-radius: 10px;
   color: var(--bg-darker);
   font-weight: bold;
   cursor: pointer;
@@ -170,25 +167,25 @@ button:active {
 
 .nav-button.prev::before {
   content: "←";
-  margin-right: calc(10px * var(--level-selector-scale) * var(--content-scale));
+  margin-right: 8px;
 }
 
 .nav-button.next::after {
   content: "→";
-  margin-left: calc(10px * var(--level-selector-scale) * var(--content-scale));
+  margin-left: 8px;
 }
 
 .level-info {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(10px * var(--level-selector-scale) * var(--content-scale));
-  margin-top: calc(20px * var(--level-selector-scale));
+  gap: 8px;
+  margin-top: 15px;
   color: white;
 }
 
 .level-title {
-  font-size: calc(2rem * var(--level-selector-scale) * var(--content-scale));
+  font-size: 1.5rem;
   margin: 0;
   color: var(--primary-color);
 }
@@ -197,7 +194,7 @@ button:active {
   display: flex;
   justify-content: space-around;
   width: 100%;
-  font-size: calc(1.2rem * var(--level-selector-scale) * var(--content-scale));
+  font-size: 1rem;
   color: #888;
 }
 
@@ -207,9 +204,7 @@ button:active {
   height: 200px;
   margin: 0 auto;
   background-color: var(--bg-darkest);
-  border-radius: calc(
-    15px * var(--level-selector-scale) * var(--content-scale)
-  );
+  border-radius: 10px;
   box-shadow: var(--shadow-glow);
 }
 
@@ -243,9 +238,8 @@ button:active {
 .back-button {
   align-self: flex-start;
   margin-top: auto;
-  padding: calc(25px * var(--level-selector-scale) * var(--content-scale))
-    calc(40px * var(--level-selector-scale) * var(--content-scale));
-  font-size: calc(2rem * var(--level-selector-scale) * var(--content-scale));
+  padding: 12px 20px;
+  font-size: 1rem;
 }
 
 .error-message {

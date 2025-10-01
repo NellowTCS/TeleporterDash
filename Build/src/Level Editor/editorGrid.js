@@ -1,5 +1,9 @@
-import { COLOR_MAP } from "../constants";
-import { GameState } from "../gameState";
+import { COLOR_MAP } from "../Utilities/constants";
+import { GameState } from "../Utilities/gameState";
+import { DOMManager } from "../Utilities/domManager.js";
+
+// Note: EditOperations import is lazy-loaded to avoid circular dependency
+let EditOperations = null;
 
 // ===== Grid ====
 // // Update Grid Size
@@ -20,6 +24,16 @@ export function updateGridSize(gridWidthInput, gridHeightInput, grid) {
 
   createGrid(grid);
   updateGridVisuals();
+  
+  // Notify EditOperations about grid size change
+  if (!EditOperations) {
+    import("./editorEditOperations.js").then(module => {
+      EditOperations = module.EditOperations;
+      EditOperations.onGridSizeChanged();
+    });
+  } else {
+    EditOperations.onGridSizeChanged();
+  }
 }
 
 // // Create Initial Grid and Update Dimensions
@@ -27,15 +41,15 @@ export function createGrid(grid, onCellChangeCallback = null) {
   grid.innerHTML = "";
 
   // Set grid dimensions using current GRID_WIDTH and GRID_HEIGHT
-  grid.style.setProperty("--grid-width", GameState.current.editor.gridWidth);
-  grid.style.setProperty("--grid-height", GameState.current.editor.gridHeight);
+  grid.style.setProperty("--grid-width", GameState.current.editor.gridWidth.toString());
+  grid.style.setProperty("--grid-height", GameState.current.editor.gridHeight.toString());
 
   // Create the actual grid cells
   for (let row = 0; row < GameState.current.editor.gridHeight; row++) {
     for (let col = 0; col < GameState.current.editor.gridWidth; col++) {
       const cell = document.createElement("div");
-      cell.dataset.row = row;
-      cell.dataset.col = col;
+      cell.dataset.row = row.toString();
+      cell.dataset.col = col.toString();
 
       // Set initial cell state based on matrix
       const value = GameState.current.editor.levelMatrix[row][col];
@@ -95,6 +109,21 @@ export function createGrid(grid, onCellChangeCallback = null) {
       grid.appendChild(cell);
     }
   }
+
+  // Prevent default drag behavior on cells
+  grid.addEventListener("dragstart", (e) => e.preventDefault());
+  
+  GameState.setEditorState({ hasUnsavedChanges: true });
+  
+  // Notify EditOperations about grid recreation
+  if (!EditOperations) {
+    import("./editorEditOperations.js").then(module => {
+      EditOperations = module.EditOperations;
+      EditOperations.onGridRecreated();
+    });
+  } else {
+    EditOperations.onGridRecreated();
+  }
 }
 
 // // Handle Clicks in Grid
@@ -153,15 +182,19 @@ export function handleCellClick(e, onChangeCallback = null) {
 export function updateGridVisuals() {
   const cells = document.querySelectorAll(".cell");
   cells.forEach((cell) => {
+    // @ts-ignore
     if (!cell.dataset.row || !cell.dataset.col) return;
 
+    // @ts-ignore
     const row = parseInt(cell.dataset.row);
+    // @ts-ignore
     const col = parseInt(cell.dataset.col);
 
     if (row === 0) {
       // Handle color row
       const colorValue = GameState.current.editor.levelMatrix[0][col] || 0; // Default to 0 if empty
       cell.className = "cell color-row";
+      // @ts-ignore
       cell.style.backgroundColor = COLOR_MAP[colorValue];
     } else {
       // Handle game cells
@@ -174,7 +207,9 @@ export function updateGridVisuals() {
         const blockType = parseInt(properties[0]);
 
         // Reset styles
+        // @ts-ignore
         cell.style.transform = "none";
+        // @ts-ignore
         cell.style.backgroundColor = "";
 
         // Add base class based on block type
@@ -200,9 +235,11 @@ export function updateGridVisuals() {
         properties.forEach((prop) => {
           if (prop.startsWith("@")) {
             const rotation = parseInt(prop.substring(1));
+            // @ts-ignore
             cell.style.transform = `rotate(${rotation}deg)`;
           } else if (prop.startsWith("-")) {
             const colorCode = parseInt(prop);
+            // @ts-ignore
             cell.style.backgroundColor = COLOR_MAP[colorCode] || COLOR_MAP[0];
           }
         });
@@ -228,6 +265,3 @@ export function updateCell(row, col, value, onChangeCallback = null) {
   updateGridVisuals();
   if (onChangeCallback) onChangeCallback();
 }
-
-// // Prevent default drag behavior
-grid.addEventListener("dragstart", (e) => e.preventDefault());

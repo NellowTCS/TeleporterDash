@@ -13,21 +13,7 @@ export default defineConfig({
         gameloader: path.resolve(__dirname, 'gameloader.html'),
         leveleditor: path.resolve(__dirname, 'leveleditor.html'),
         levelstore: path.resolve(__dirname, 'levelstore.html'),
-      },
-      output: {
-        entryFileNames: (chunkInfo) => {
-          return `${chunkInfo.name}.js`;
-        },
-        chunkFileNames: (chunkInfo) => {
-          return `shared.js`;
-        },
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
-            return 'styles.css'
-          }
-          return assetInfo.name || 'asset'
-        },
-      },
+      }
     },
   },
   resolve: {

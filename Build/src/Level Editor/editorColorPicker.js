@@ -1,5 +1,5 @@
-import { COLOR_MAP } from "../constants";
-import { GameState } from "../gameState";
+import { COLOR_MAP } from "../Utilities/constants";
+import { GameState } from "../Utilities/gameState";
 
 // ===== Color Picker Functions =====
 
@@ -7,7 +7,9 @@ import { GameState } from "../gameState";
 export function updateSelectedColorIndicator() {
   const colorCells = document.querySelectorAll(".cell.color-row");
   colorCells.forEach((cell) => {
+    // @ts-ignore
     if (cell.style.backgroundColor === "") {
+      // @ts-ignore
       cell.style.backgroundColor =
         COLOR_MAP[GameState.current.editor.selectedColor];
     }
@@ -18,12 +20,14 @@ export function updateSelectedColorIndicator() {
 export function handleColorSelection(colorNum) {
   GameState.setEditorState({ selectedColor: colorNum });
   const sectionColorPicker = document.getElementById("colorPicker");
-  sectionColorPicker.value = colorNum.toString();
+  if (sectionColorPicker instanceof HTMLSelectElement) {
+    sectionColorPicker.value = colorNum.toString();
+  }
   updateSelectedColorIndicator();
   // Switch to color tool
   const colorButton = document.querySelector('button[data-type="c"]');
   if (colorButton && !colorButton.classList.contains("active")) {
-    colorButton.click();
+    (colorButton instanceof HTMLButtonElement ? colorButton : null)?.click();
   }
 }
 
@@ -59,21 +63,23 @@ export function initializeColorPickers() {
 
   // Add event listeners
   sectionColorPicker.addEventListener("change", function () {
+    // @ts-ignore
     GameState.setEditorState({ selectedColor: parseInt(this.value) });
     // Switch to color tool when selecting a section color
     const colorButton = document.querySelector('button[data-type="c"]');
     if (colorButton && !colorButton.classList.contains("active")) {
-      colorButton.click();
+      (colorButton instanceof HTMLButtonElement ? colorButton : null)?.click();
     }
     updateSelectedColorIndicator();
   });
 
   blockColorPicker.addEventListener("change", function () {
+    // @ts-ignore
     GameState.setEditorState({ selectedBlockColor: parseInt(this.value) });
     // Always switch to platform tool when selecting a color
     const platformButton = document.querySelector('button[data-type="1"]');
     if (platformButton) {
-      platformButton.click();
+      (platformButton instanceof HTMLButtonElement ? platformButton : null)?.click();
     }
   });
 }
@@ -94,5 +100,6 @@ document.addEventListener("keydown", (e) => {
 // // Color Picker
 const colorPicker = document.getElementById("colorPicker");
 colorPicker.addEventListener("change", function () {
-  handleColorSelection(parseInt(this.value));
+  // @ts-ignore
+  handleColorSelection(parseInt((this).value));
 });

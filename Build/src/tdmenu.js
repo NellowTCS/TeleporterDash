@@ -1,6 +1,8 @@
 // Menu Navigation System
-import { DatabaseManager } from './databaseManager.js';
-import './levelPreview.js';
+import { DatabaseManager } from './Utilities/databaseManager.js';
+import { DOMManager } from './Utilities/domManager.js';
+import './Utilities/levelPreview.js';
+import { showError, showLoadingError } from './Utilities/notificationManager.js';
 
 async function transitionMenu(fromMenu, toMenu) {
   return new Promise((resolve) => {
@@ -41,13 +43,13 @@ async function handleMenuTransition(from, to) {
   await transitionMenu(fromMenu, toMenu);
 }
 
-// Audio Setup
-const menuMusic = document.getElementById("menu-music");
-menuMusic.loop = true;
-menuMusic.volume = 0.9;
-menuMusic.preload = "auto";
+// Assign to window immediately after definition
+// @ts-ignore
+window.handleMenuTransition = handleMenuTransition;
 
-window.addEventListener("click", () => menuMusic.play(), { once: true });
+// Audio Setup - moved to DOMContentLoaded below
+/** @type {HTMLAudioElement | null} */
+let menuMusic = null;
 
 let levelsLoaded = false;
 let cssLoaded = false;
@@ -59,11 +61,15 @@ document.fonts.ready.then(() => {
 // Navigation Functions
 function startGame() {
   console.log(currentLevelType);
+  // @ts-ignore
   if (currentLevelType === "built-in" && window.builtInLevels) {
+    // @ts-ignore
     const level = window.builtInLevels[currentLevelIndex];
     window.location.href = `gameloader.html?level=${level.number}`;
-  } else if (currentLevelType === "online" && window.downloadedLevels) {
-    const level = window.downloadedLevels[currentLevelIndex];
+  // @ts-ignore
+  } else if (currentLevelType === "online" && window.onlineLevels) {
+    // @ts-ignore
+    const level = window.onlineLevels[currentLevelIndex];
     window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
       level.filename
     )}`;
@@ -84,15 +90,21 @@ function showCredits() {
   );
 }
 
+// Assign to window immediately after definition
+// @ts-ignore
+window.showCredits = showCredits;
+
 function levelStore() {
   window.location.href = "levelstore.html";
 }
 
 // Settings Functions
 function updateVolumeLabel() {
-  const volume = document.getElementById("volume-slider").value;
-  document.getElementById("volume-label").innerText = volume;
-  menuMusic.volume = volume / 100;
+  const volume = DOMManager.getElement("#volumeSlider").value;
+  DOMManager.getElement("#volumeLabel").innerText = volume;
+  if (menuMusic) {
+    menuMusic.volume = volume / 100;
+  }
 }
 
 // Level System
@@ -123,12 +135,18 @@ async function loadBuiltInLevelRegistry() {
   );
   
   // Clone template and populate
-  const template = document.getElementById('built-in-level-template');
+  const template = document.querySelector('#built-in-level-template');
+  if (!template) {
+    console.error('Template not found: #built-in-level-template');
+    return;
+  }
+  // @ts-ignore
   const content = template.content.cloneNode(true);
   levelSelector.innerHTML = '';
   levelSelector.appendChild(content);
 
   const levels = await scanForLevels();
+  // @ts-ignore
   window.builtInLevels = levels;
   currentLevelIndex = 0;
   maxLevelIndex = levels.length - 1;
@@ -143,7 +161,12 @@ async function loadOnlineLevelRegistry() {
   );
   
   // Clone template and populate
-  const template = document.getElementById('online-level-template');
+  const template = document.querySelector('#online-level-template');
+  if (!template) {
+    console.error('Template not found: #online-level-template');
+    return;
+  }
+  // @ts-ignore
   const content = template.content.cloneNode(true);
   levelSelector.innerHTML = '';
   levelSelector.appendChild(content);
@@ -158,6 +181,7 @@ async function loadOnlineLevelRegistry() {
         '<p class="no-levels">No downloaded levels found.<br>Visit the Level Store to download levels!</p>';
       return;
     }
+    // @ts-ignore
     window.onlineLevels = levels;
     currentLevelIndex = 0;
     maxLevelIndex = levels.length - 1;
@@ -192,7 +216,12 @@ async function updateLevelDisplay() {
   const levelDisplay = container.querySelector(".level-display");
   if (!levelDisplay) {
     // Clone the level-display template
-    const template = document.getElementById('level-display-template');
+    const template = document.querySelector('#level-display-template');
+    if (!template) {
+      console.error('Template not found: #level-display-template');
+      return;
+    }
+    // @ts-ignore
     const content = template.content.cloneNode(true);
     container.innerHTML = '';
     container.appendChild(content);
@@ -206,6 +235,7 @@ async function updateLevelDisplay() {
     // Update back button onclick
     const backButton = container.querySelector('.back-button');
     if (backButton) {
+      // @ts-ignore
       backButton.onclick = () => handleMenuTransition(
         currentLevelType === "built-in" ? "built-in-levels" : "online-levels", 
         'menu'
@@ -225,11 +255,22 @@ async function updateLevelDisplay() {
         document.head.appendChild(script);
       });
 
+      // @ts-ignore
       levelData = window.levelData;
       document.head.removeChild(script);
+      // @ts-ignore
       window.levelData = null;
     } else {
-      levelData = window.downloadedLevels[currentLevelIndex];
+      // @ts-ignore
+      if (!window.onlineLevels || !Array.isArray(window.onlineLevels)) {
+        throw new Error("No online levels data available");
+      }
+      // @ts-ignore
+      if (currentLevelIndex < 0 || currentLevelIndex >= window.onlineLevels.length) {
+        throw new Error(`Invalid level index: ${currentLevelIndex}`);
+      }
+      // @ts-ignore
+      levelData = window.onlineLevels[currentLevelIndex];
     }
 
     if (!levelData) throw new Error("No level data found");
@@ -266,7 +307,9 @@ async function updateLevelDisplay() {
     const prevButton = container.querySelector(".nav-button.prev");
     const nextButton = container.querySelector(".nav-button.next");
 
+    // @ts-ignore
     if (prevButton) prevButton.disabled = currentLevelIndex === 0;
+    // @ts-ignore
     if (nextButton) nextButton.disabled = currentLevelIndex === maxLevelIndex;
   } catch (error) {
     console.error("Error updating level display:", error);
@@ -277,28 +320,6 @@ async function updateLevelDisplay() {
   }
 }
 
-// Error Handling
-function showError(message, container) {
-  const errorElement = document.createElement("div");
-  errorElement.className = "error-message";
-  errorElement.innerHTML = `
-        <p>${message}</p>
-        <button onclick="this.parentElement.remove()">OK</button>
-    `;
-  container.appendChild(errorElement);
-}
-
-function showLoadingError(message, isBuiltIn = false) {
-  const container = document.querySelector(
-    isBuiltIn
-      ? ".built-in-levels #current-level"
-      : ".online-levels #current-level"
-  );
-  if (container) {
-    container.innerHTML = `<p>${message}</p>`;
-  }
-}
-
 // Resizing Function
 function updateMenuScale() {
   const width = window.innerWidth;
@@ -306,7 +327,7 @@ function updateMenuScale() {
   const zoomLevel = window.devicePixelRatio || 1;
 
   // Menu scaling (unchanged)
-  const menuElement = document.querySelector(".menu");
+  const menuElement = DOMManager.getElement("#menu");
   if (menuElement) {
     const baseMenuWidth = 450;
     const baseMenuHeight = 300;
@@ -314,59 +335,27 @@ function updateMenuScale() {
     const menuHeightScale = ((height / zoomLevel) * 0.7) / baseMenuHeight;
     let menuScale = Math.min(menuWidthScale, menuHeightScale);
     menuScale = Math.max(0.6, Math.min(menuScale, 1.2));
-    document.documentElement.style.setProperty("--menu-scale", menuScale);
+    document.documentElement.style.setProperty("--menu-scale", menuScale.toString());
   }
 
-  // Level selector scaling
-  const levelSelectorElement = document.querySelector(".level-selector");
-  if (levelSelectorElement) {
-    const baseLevelWidth = 1200;
-    const baseLevelHeight = 1000; // Increased for taller mobile
-    const levelWidthScale = ((width / zoomLevel) * 1.0) / baseLevelWidth;
-    const levelHeightScale = ((height / zoomLevel) * 1.0) / baseLevelHeight;
-    let levelScale;
-    if (width < 768) {
-      // Mobile
-      const levelHeightScale = ((height / zoomLevel) * 1.0) / baseLevelHeight; // 100% height ratio
-      levelScale = Math.min(levelWidthScale, levelHeightScale);
-      levelScale = Math.max(1.8, Math.min(levelScale, 2.5)); // Large mobile size
-      levelSelectorElement.style.maxHeight = "100vh"; // Full height on mobile
-    } else {
-      // Desktop
-      const levelHeightScale = ((height / zoomLevel) * 0.9) / baseLevelHeight; // Reduced to 40% height ratio
-      levelScale = Math.min(levelWidthScale, levelHeightScale);
-      levelScale = Math.max(1.0, Math.min(levelScale, 1.6)); // Desktop range
-      levelSelectorElement.style.maxHeight = `${Math.min(
-        baseLevelHeight * levelScale,
-        height * 0.9
-      )}px`; // Smaller desktop height
-    }
-
-    // Adjust for overflow
-    const scaledWidth = baseLevelWidth * levelScale;
-    const scaledHeight = baseLevelHeight * levelScale;
-    if (scaledWidth > width || scaledHeight > height) {
-      const overflowScale = Math.min(
-        width / scaledWidth,
-        height / scaledHeight
-      );
-      levelScale *= overflowScale;
-    }
-
-    document.documentElement.style.setProperty(
-      "--level-selector-scale",
-      levelScale
-    );
-
-    // Adjust content scale: smaller on desktop, normal on mobile
-    const contentScale = width >= 768 ? 0.6 : 1.0; // Reduce content size on desktop
-    document.documentElement.style.setProperty("--content-scale", contentScale);
-  }
+  // Simplified - no complex level selector scaling needed
 }
 
 // Initial scale setup
 window.addEventListener("DOMContentLoaded", () => {
-  setTimeout(updateMenuScale, 100);
+  // Wait for fonts to load before scaling
+  document.fonts.ready.then(() => {
+    setTimeout(updateMenuScale, 100);
+  });
+  
+  // Audio Setup
+  menuMusic = DOMManager.getElement("#menuMusic");
+  if (menuMusic) {
+    menuMusic.loop = true;
+    menuMusic.volume = 0.9;
+    menuMusic.preload = "auto";
+    window.addEventListener("click", () => menuMusic.play(), { once: true });
+  }
 });
 
 // Update scale on resize with debounce
@@ -409,11 +398,15 @@ function clearData() {
 document.addEventListener("DOMContentLoaded", () => DatabaseManager.initDB());
 
 // Make functions global for HTML onclick
-window.handleMenuTransition = handleMenuTransition;
+// @ts-ignore
 window.startGame = startGame;
+// @ts-ignore
 window.openLevelEditor = openLevelEditor;
-window.showCredits = showCredits;
+// @ts-ignore
 window.levelStore = levelStore;
+// @ts-ignore
 window.updateVolumeLabel = updateVolumeLabel;
+// @ts-ignore
 window.handleLevelNavigation = handleLevelNavigation;
+// @ts-ignore
 window.clearData = clearData;

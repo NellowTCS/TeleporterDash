@@ -1,6 +1,6 @@
-import { DatabaseManager } from "./databaseManager";
-import { GameState } from "./gameState";
-import { AudioManager } from "./audioManager";
+import { DatabaseManager } from "./Utilities/databaseManager";
+import { GameState } from "./Utilities/gameState";
+import { AudioManager } from "./Utilities/audioManager";
 import {
   createGrid,
   updateGridVisuals,
@@ -14,7 +14,9 @@ import {
 } from "./Level Editor/editorColorPicker";
 import "./Level Editor/editorTools";
 import { DraftManager } from "./Level Editor/draftManager";
-import { DOMManager } from "./domManager";
+import { EditOperations } from "./Level Editor/editorEditOperations";
+import { DOMManager } from "./Utilities/domManager";
+import JSZip from "jszip";
 
 // =====  Variables =====
 // Initialize DOM elements
@@ -48,14 +50,19 @@ const currentDraftIndicator = DOMManager.getElement("#currentDraftIndicator");
 initializeColorPickers();
 
 // ===== Export =====
-// // Initialize the editor
-createGrid(grid, DraftManager.scheduleAutoSaveWrapper.bind(DraftManager));
+// // Initialize the editor - hook cell changes to edit operations system
+function onCellChange() {
+  EditOperations.onCellChange();
+}
 
-// // Checks
-// // // Next Level ID
+createGrid(grid, () => {
+  DraftManager.scheduleAutoSaveWrapper.bind(DraftManager)();
+  setTimeout(onCellChange, 0); // Defer to allow state update
+});
+
 function getNextLevelId() {
   const id = GameState.current.editor.nextLevelId++;
-  localStorage.setItem("nextLevelId", GameState.current.editor.nextLevelId);
+  localStorage.setItem("nextLevelId", GameState.current.editor.nextLevelId.toString());
   return id;
 }
 
@@ -104,7 +111,7 @@ function importMatrix() {
   fileInput.accept = ".js,.txt,application/json,.zip";
 
   fileInput.onchange = async function (e) {
-    const file = e.target.files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
 
     if (file.name.endsWith(".zip")) {
       // Handle ZIP file
@@ -290,8 +297,8 @@ function processImportedContent(content) {
         lastExportedMatrix: null,
       });
 
-      gridWidthInput.value = GameState.current.editor.gridWidth;
-      gridHeightInput.value = GameState.current.editor.gridHeight;
+      gridWidthInput.value = GameState.current.editor.gridWidth.toString();
+      gridHeightInput.value = GameState.current.editor.gridHeight.toString();
 
       // Recreate grid with new dimensions and data
       createGrid(grid);
@@ -329,7 +336,7 @@ DOMManager.addEvent("#importBtn", "click", importMatrix);
 
 // // Custom Music File Selection
 DOMManager.addEvent("#customMusicInput", "change", function (e) {
-  const file = e.target.files[0];
+  const file = /** @type {HTMLInputElement} */ (e.target).files[0];
   if (file) {
     const reader = new FileReader();
 
@@ -576,6 +583,112 @@ DOMManager.addEvent(window, "beforeunload", () => {
   AudioManager.stopPreview(musicPreview);
 });
 
+// ===== Grid Zoom Functionality =====
+let currentGridZoom = 1.0;
+const gridZoomMin = 0.25;
+const gridZoomMax = 3.0;
+const gridZoomStep = 0.25;
+
+// Page zoom via CSS (no controls, just keyboard shortcuts)
+let currentPageZoom = 0.8; // Default to 80% for better overview
+const pageZoomMin = 0.5;
+const pageZoomMax = 1.5;
+const pageZoomStep = 0.1;
+
+const gridZoomInBtn = DOMManager.getElement("#gridZoomIn");
+const gridZoomOutBtn = DOMManager.getElement("#gridZoomOut");
+const gridZoomResetBtn = DOMManager.getElement("#gridZoomReset");
+const gridZoomLevelDisplay = DOMManager.getElement("#gridZoomLevel");
+
+function updateGridZoomDisplay() {
+  const percentage = Math.round(currentGridZoom * 100);
+  gridZoomLevelDisplay.textContent = `${percentage}%`;
+  document.documentElement.style.setProperty('--grid-scale', currentGridZoom.toString());
+}
+
+function updatePageZoom() {
+  document.documentElement.style.setProperty('--page-zoom', currentPageZoom.toString());
+}
+
+function gridZoomIn() {
+  if (currentGridZoom < gridZoomMax) {
+    currentGridZoom = Math.min(currentGridZoom + gridZoomStep, gridZoomMax);
+    updateGridZoomDisplay();
+  }
+}
+
+function gridZoomOut() {
+  if (currentGridZoom > gridZoomMin) {
+    currentGridZoom = Math.max(currentGridZoom - gridZoomStep, gridZoomMin);
+    updateGridZoomDisplay();
+  }
+}
+
+function resetGridZoom() {
+  currentGridZoom = 1.0;
+  updateGridZoomDisplay();
+}
+
+function pageZoomIn() {
+  if (currentPageZoom < pageZoomMax) {
+    currentPageZoom = Math.min(currentPageZoom + pageZoomStep, pageZoomMax);
+    updatePageZoom();
+  }
+}
+
+function pageZoomOut() {
+  if (currentPageZoom > pageZoomMin) {
+    currentPageZoom = Math.max(currentPageZoom - pageZoomStep, pageZoomMin);
+    updatePageZoom();
+  }
+}
+
+function resetPageZoom() {
+  currentPageZoom = 1.0;
+  updatePageZoom();
+}
+
+// Add event listeners for grid zoom controls
+DOMManager.addEvent("#gridZoomIn", "click", gridZoomIn);
+DOMManager.addEvent("#gridZoomOut", "click", gridZoomOut);
+DOMManager.addEvent("#gridZoomReset", "click", resetGridZoom);
+
+// Edit controls are handled by EditOperations module
+
+// Keyboard shortcuts for zooming
+DOMManager.addEvent(document, "keydown", (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === "=" || e.key === "+") {
+      e.preventDefault();
+      gridZoomIn();
+    } else if (e.key === "-") {
+      e.preventDefault();
+      gridZoomOut();
+    } else if (e.key === "0") {
+      e.preventDefault();
+      resetGridZoom();
+    }
+  } else if (e.shiftKey) {
+    if (e.key === "=" || e.key === "+") {
+      e.preventDefault();
+      pageZoomIn();
+    } else if (e.key === "-") {
+      e.preventDefault();
+      pageZoomOut();
+    } else if (e.key === "0") {
+      e.preventDefault();
+      resetPageZoom();
+    }
+  }
+});
+
+// Initialize zoom displays
+updateGridZoomDisplay();
+updatePageZoom();
+
+// ===== Edit Operations =====
+// All edit operations (undo/redo, copy/paste, selection) are now handled by EditOperations module
+
 // Initialize DatabaseManager and load drafts on page load
 DatabaseManager.initDB()
   .then(() => {
@@ -586,5 +699,7 @@ DatabaseManager.initDB()
   });
 
 // Make functions globally accessible for HTML onclick handlers
+// @ts-ignore - Global function for HTML onclick handlers
 window.loadDraft = DraftManager.loadDraftWrapper.bind(DraftManager);
+// @ts-ignore - Global function for HTML onclick handlers
 window.deleteDraft = DraftManager.deleteDraftWrapper.bind(DraftManager);

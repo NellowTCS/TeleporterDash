@@ -1,4 +1,6 @@
 // Score Manager for Teleporter Dash
+import { DOMManager } from '../Utilities/domManager.js';
+
 export const ScoreManager = {
   // Default scores structure using Map
   scores: {
@@ -12,19 +14,19 @@ export const ScoreManager = {
       const request = indexedDB.open("TeleporterDashDB", this.dbVersion);
 
       request.onerror = (event) => {
-        console.error("IndexedDB error:", event.target.error);
-        reject(event.target.error);
+        console.error("IndexedDB error:", /** @type {IDBOpenDBRequest} */ (event.target).error);
+        reject(/** @type {IDBOpenDBRequest} */ (event.target).error);
       };
 
       request.onsuccess = (event) => {
-        this.db = event.target.result;
+        this.db = /** @type {IDBOpenDBRequest} */ (event.target).result;
         console.log("Database opened successfully");
         resolve();
       };
 
       request.onupgradeneeded = (event) => {
         console.log("Database upgrade needed");
-        const db = event.target.result;
+        const db = /** @type {IDBOpenDBRequest} */ (event.target).result;
         if (!db.objectStoreNames.contains("scores")) {
           const store = db.createObjectStore("scores");
           console.log("Scores object store created");
@@ -207,7 +209,7 @@ export const ScoreManager = {
 
   // Update scoreboard UI
   updateScoreboardUI(filename) {
-    let scoreboard = document.getElementById("scoreboard");
+    let scoreboard = DOMManager.getElement("#scoreboard");
     if (!scoreboard) {
       scoreboard = this.createScoreboardUI();
     }
@@ -328,7 +330,7 @@ export const ScoreManager = {
 
   // Update menu scoreboard UI
   updateMenuScoreboardUI() {
-    let menuScoreboard = document.getElementById("menuScoreboard");
+    let menuScoreboard = DOMManager.getElement("#menuScoreboard");
     if (!menuScoreboard) {
       menuScoreboard = this.createMenuScoreboardUI();
     }

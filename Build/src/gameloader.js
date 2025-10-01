@@ -1,17 +1,22 @@
 // Game Loader for Teleporter Dash
-import { GameState } from './gameState.js';
-import { AudioManager } from './audioManager.js';
-import { LevelLoader } from './levelLoader.js';
-import { SettingsManager } from './settingsManager.js';
-import { ScoreManager } from './scoreManager.js';
-import { DatabaseManager } from './databaseManager.js';
-import { COLOR_MAP, CONSTANTS } from './constants.js';
+import { GameState } from './Utilities/gameState.js';
+import { AudioManager } from './Utilities/audioManager.js';
+import { LevelLoader } from './Game Engine/levelLoader.js';
+import { SettingsManager } from './Game Engine/settingsManager.js';
+import { ScoreManager } from './Game Engine/scoreManager.js';
+import { DatabaseManager } from './Utilities/databaseManager.js';
+import { COLOR_MAP, CONSTANTS } from './Utilities/constants.js';
+import { DOMManager } from './Utilities/domManager.js';
+// @ts-ignore
+import { showError, showLoadingError } from './Utilities/notificationManager.js';
 
 // Get reference to game container
-const gameContainer = document.getElementById("gameContainer");
-const player = document.getElementById("player");
+const gameContainer = DOMManager.getElement("#gameContainer");
+const player = DOMManager.getElement("#player");
+const restartBtn = DOMManager.getElement("#restartBtn");
 
 // Make player globally accessible for other modules
+// @ts-ignore
 window.player = player;
 
 // Timer variables (needs to be accessible for clearing)
@@ -69,16 +74,18 @@ let animationFrameId = null; // ID of the current animation frame
 // DeltaTime variables for frame-rate independence
 let lastFrameTime = performance.now(); // Timestamp of the last frame
 let deltaTime = 0; // Time elapsed since last frame (in seconds)
+// @ts-ignore
 const TARGET_FPS = 60; // Target frame rate for physics calculations
 const MAX_DELTA_TIME = 1 / 30; // Cap deltaTime to prevent large jumps
 
 // Progress tracking variables
-const progressText = document.getElementById("progressText");
-const progressFill = document.getElementById("progressFill");
+const progressText = DOMManager.getElement("#progressText");
+const progressFill = DOMManager.getElement("#progressFill");
 let totalColumns = 0; // Will be set when levelMatrix is loaded
-
 // Make progress elements globally accessible
+// @ts-ignore
 window.progressText = progressText;
+// @ts-ignore
 window.progressFill = progressFill;
 
 // Global jump buffer for keyboard/mouse inputs
@@ -93,6 +100,7 @@ let touchJumpDelay = 300; // milliseconds
 let lastProgressUpdate = 0;
 const progressUpdateInterval = 16; // ~60fps update frequency for progress bar
 let totalBlocks = 0; // Total number of blocks in the level
+// @ts-ignore
 let passedBlocks = 0; // Number of blocks the player has passed
 
 // Position of the finish line in the level matrix
@@ -100,20 +108,26 @@ let finishLinePosition = 0;
 
 // Auto-restart settings
 let autoRestartEnabled = false; // Whether to automatically restart on death
+// @ts-ignore
 let isRestarting = false; // Whether the game is currently restarting
 
 // Pause state
+// @ts-ignore
 let isPaused = false;
-const pauseMenu = document.getElementById("pauseMenu");
+const pauseMenu = DOMManager.getElement("#pauseMenu");
 
 // Check if level complete
-const levelCompleteElement = document.getElementById("levelComplete");
-const gameOverElement = document.getElementById("gameOver");
+const levelCompleteElement = DOMManager.getElement("#levelComplete");
+const gameOverElement = DOMManager.getElement("#gameOver");
 
 // For loading online levels
+// @ts-ignore
 let db;
+// @ts-ignore
 const DB_NAME = "TeleporterDashDB";
+// @ts-ignore
 const STORE_NAME = "downloadedLevels";
+// @ts-ignore
 const DB_VERSION = 2;
 
 // Initialize GameState with default values
@@ -164,7 +178,7 @@ function toggleGameState(action) {
 }
 
 // Single mute button setup
-const muteButton = document.getElementById("muteButton");
+const muteButton = DOMManager.getElement("#muteButton");
 if (muteButton) {
   // Remove any existing listeners by cloning
   const newMuteButton = muteButton.cloneNode(true);
@@ -227,9 +241,11 @@ function createObstacleFromMatrix(type, row) {
   let blockType = type;
   let blockColor = null;
   let blockRotation = 0;
-
   if (typeof type === "string") {
+    // @ts-ignore
     const properties = type.split("/");
+    // First property is always the type
+    blockType = parseInt(properties[0]);
     // First property is always the type
     blockType = parseInt(properties[0]);
 
@@ -245,11 +261,11 @@ function createObstacleFromMatrix(type, row) {
       }
     }
   }
-
   // Handle empty blocks (type 0)
   if (blockType === 0) {
     const emptyBlock = document.createElement("div");
     emptyBlock.className = "empty-block";
+    // @ts-ignore
     emptyBlock.type = "empty";
     emptyBlock.style.position = "absolute";
     emptyBlock.style.width = "30px";
@@ -264,7 +280,7 @@ function createObstacleFromMatrix(type, row) {
     const invertedRow = levelHeight - 1 - row;
     emptyBlock.style.bottom = baseHeight + invertedRow * rowSpacing + "px";
 
-    document.getElementById("cameraContainer").appendChild(emptyBlock);
+    DOMManager.getElement("#cameraContainer").appendChild(emptyBlock);
     obstacles.push({ element: emptyBlock, type: "empty" });
     return;
   }
@@ -278,16 +294,19 @@ function createObstacleFromMatrix(type, row) {
     obstacle.style.width = "10px";
     obstacle.style.height = "350px";
     obstacle.style.background = "#00ff00";
+    // @ts-ignore
     obstacle.type = "finish";
     obstacle.style.position = "absolute";
     obstacle.style.bottom = "50px"; // Align with ground
   } else if (blockType === 2) {
     // Spike
     obstacle.className = "spike";
+    // @ts-ignore
     obstacle.type = "spike";
   } else if (blockType === 3) {
     // Teleporter
     obstacle.className = "teleporter";
+    // @ts-ignore
     obstacle.type = "teleporter";
     obstacle.style.width = "30px";
     obstacle.style.height = "60px";
@@ -296,13 +315,16 @@ function createObstacleFromMatrix(type, row) {
     obstacle.style.animation = "glow 1s infinite alternate";
 
     // Extract rotation if it exists
+    // @ts-ignore
     if (typeof type === "string" && type.includes("@")) {
+      // @ts-ignore
       const rotation = type.split("@")[1];
       obstacle.setAttribute("data-rotation", rotation);
     }
   } else if (blockType === 1) {
     // Platform
     obstacle.className = "platform";
+    // @ts-ignore
     obstacle.type = "platform";
     obstacle.style.width = "45px";
     obstacle.style.height = "45px";
@@ -334,7 +356,8 @@ function createObstacleFromMatrix(type, row) {
   const invertedRow = levelHeight - 1 - row;
   obstacle.style.bottom = baseHeight + invertedRow * rowSpacing + "px";
 
-  document.getElementById("cameraContainer").appendChild(obstacle);
+  DOMManager.getElement("#cameraContainer").appendChild(obstacle);
+  // @ts-ignore
   obstacles.push({ element: obstacle, type: obstacle.type });
 }
 
@@ -352,9 +375,9 @@ function checkCollision(player, obstacle) {
   const playerLeft = parseInt(player.style.left);
   const obstacleBottom = parseInt(obstacle.style.bottom);
   const obstacleLeft = parseInt(obstacle.style.left);
-
   const tolerance = 5; // Small overlap allowance for smoother collision
   const playerSize = 30; // Player width/height
+  // @ts-ignore
   const obstacleSize = obstacle.type === "platform" ? 45 : 30;
 
   // Get obstacle rotation
@@ -370,7 +393,7 @@ function checkCollision(player, obstacle) {
   // Adjust collision box based on rotation for spikes
   let adjustedObstacleBottom = obstacleBottom;
   let adjustedObstacleLeft = obstacleLeft;
-
+  // @ts-ignore
   if (obstacle.type === "spike") {
     switch (rotation) {
       case 90: // Pointing left
@@ -400,6 +423,7 @@ function checkCollision(player, obstacle) {
  * Handles specific collision logic for platforms
  * Includes landing detection and side collision
  */
+// @ts-ignore
 function handlePlatformCollision(playerRect, platform) {
   // Get raw positions without camera influence
   const playerBottom = parseInt(player.style.bottom);
@@ -496,7 +520,7 @@ function levelComplete() {
   progressText.textContent = "100% (Level Complete!)";
 
   // Setup next level button
-  const nextLevelBtn = document.getElementById("nextLevelBtn");
+  const nextLevelBtn = DOMManager.getElement("#nextLevelBtn");
 
   // Handle next level button visibility
   if (window.location.search.includes("test=true")) {
@@ -531,6 +555,7 @@ const CAMERA_FOLLOW_THRESHOLD = 50; // Reduced from 100 to make camera more resp
 const MAX_CAMERA_SPEED = 20; // Increased from 15 to make camera movement smoother
 
 // Make cameraOffsetY globally accessible
+// @ts-ignore
 window.cameraOffsetY = cameraOffsetY;
 
 /**
@@ -627,8 +652,8 @@ function updateGame() {
   player.style.transform = `rotate(${state.rotation}deg)`;
 
   // Update obstacles with optimization
-  const playerRect = player.getBoundingClientRect();
-  const containerLeft = gameContainer.getBoundingClientRect().left;
+  const playerRect = player ? player.getBoundingClientRect() : null;
+  const containerLeft = gameContainer ? gameContainer.getBoundingClientRect().left : 0;
 
   // Process each obstacle
   for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -644,7 +669,7 @@ function updateGame() {
     }
 
     // Only check collisions for nearby obstacles
-    if (Math.abs(obstacleLeft - (playerRect.left - containerLeft)) < 100) {
+    if (playerRect && Math.abs(obstacleLeft - (playerRect.left - containerLeft)) < 100) {
       const collision = checkCollision(player, obstacle.element);
       if (collision) {
         if (obstacle.type === "finish") {
@@ -747,7 +772,7 @@ function updateGame() {
   }
 
   // Apply camera transform
-  const cameraContainer = document.getElementById("cameraContainer");
+  const cameraContainer = DOMManager.getElement("#cameraContainer");
   cameraContainer.style.transform = `translateY(${cameraOffsetY}px)`;
 }
 
@@ -776,12 +801,19 @@ async function gameOver() {
     }
 
     // Create particles at player position
-    const playerRect = player.getBoundingClientRect();
-    const cameraRect = document
-      .getElementById("cameraContainer")
-      .getBoundingClientRect();
-    const relativeX = playerRect.left - cameraRect.left;
-    const relativeY = cameraRect.bottom - playerRect.bottom;
+    const playerRect = player ? player.getBoundingClientRect() : null;
+    const cameraContainer = DOMManager.getElement("#cameraContainer");
+    const cameraRect = cameraContainer ? cameraContainer.getBoundingClientRect() : null;
+    
+    // Calculate relative position for particles (with fallback if elements not available)
+    let relativeX = 0;
+    let relativeY = 0;
+    if (playerRect && cameraRect) {
+      // @ts-ignore
+      relativeX = playerRect.left - cameraRect.left;
+      // @ts-ignore
+      relativeY = cameraRect.bottom - playerRect.bottom;
+    }
 
     // Get color of the obstacle that caused death
     let particleColor = "#ff0000"; // Default red
@@ -876,7 +908,7 @@ async function restartGame() {
 
   // Reset camera position
   cameraOffsetY = 0;
-  document.getElementById("cameraContainer").style.transform = "translateY(0)";
+  DOMManager.getElement("#cameraContainer").style.transform = "translateY(0)";
 
   // Clear obstacles and particles
   obstacles.forEach((obstacle) => {
@@ -929,10 +961,12 @@ async function restartGame() {
 document.addEventListener("keydown", handleSpaceJump);
 document.addEventListener("mousedown", handleMouseJump);
 restartBtn.addEventListener("click", restartGame);
+
 /**
  * Handles player jumping mechanics
  * Includes double jump and jump buffering
  */
+// @ts-ignore
 function jump(e) {
   const currentTime = Date.now();
   const state = GameState.getState();
@@ -970,10 +1004,13 @@ function jump(e) {
 document.addEventListener(
   "touchstart",
   (e) => {
+    // @ts-ignore
     if (!e.targetTouches[0].target.__touchHandled) {
+      // @ts-ignore
       e.targetTouches[0].target.__touchHandled = true;
       jump(e);
       setTimeout(() => {
+        // @ts-ignore
         e.targetTouches[0].target.__touchHandled = false;
       }, touchJumpDelay);
     }
@@ -1036,8 +1073,8 @@ function updateProgress() {
     : clampedProgress;
 
   // Update UI elements
-  const progressText = document.getElementById("progressText");
-  const progressFill = document.getElementById("progressFill");
+  const progressText = DOMManager.getElement("#progressText");
+  const progressFill = DOMManager.getElement("#progressFill");
 
   progressText.textContent = `${finalProgress}%`;
   progressFill.style.width = `${finalProgress}%`;
@@ -1052,10 +1089,10 @@ function updateProgress() {
   }
 
   // Update player indicator position on height bar
-  const heightIndicator = document.getElementById("heightIndicator");
+  const heightIndicator = DOMManager.getElement("#heightIndicator");
   if (heightIndicator) {
     const indicatorHeight = heightIndicator.offsetHeight;
-    const playerIndicator = document.getElementById("playerIndicator");
+    const playerIndicator = DOMManager.getElement("#playerIndicator");
     const position = (finalProgress / 100) * indicatorHeight;
     playerIndicator.style.top = `${position}px`;
   }
@@ -1067,6 +1104,7 @@ function updateProgress() {
  * Calculates the total number of blocks in the level
  * Used for progress tracking and level completion
  */
+// @ts-ignore
 function calculateTotalBlocks() {
   const state = GameState.getState();
   if (!state.levelMatrix || state.levelMatrix.length === 0) return;
@@ -1096,6 +1134,7 @@ function calculateTotalBlocks() {
  * Gradually reduces background music volume until silent
  * Used during level completion and game over
  */
+// @ts-ignore
 async function fadeOutMusic() {
   const state = GameState.getState();
   const currentMusic = state.isPracticeMode
@@ -1115,13 +1154,16 @@ async function fadeOutMusic() {
  */
 async function initializeLevel() {
   // Get references to all UI elements
-  const settingsMenu = document.getElementById("settingsMenu");
-  const volumeSlider = document.getElementById("volumeSlider");
-  const volumeValue = document.getElementById("volumeValue");
+  // @ts-ignore
+  const settingsMenu = DOMManager.getElement("#settingsMenu");
+  const volumeSlider = DOMManager.getElement("#volumeSlider");
+  const volumeValue = DOMManager.getElement("#volumeValue");
   const controlMethodSelect = document.getElementById("controlMethod");
   const autoRestartCheckbox = document.getElementById("autoRestart");
   const practiceModeCheckbox = document.getElementById("practiceMode");
+  // @ts-ignore
   const startLevelBtn = document.getElementById("startLevelBtn");
+  // @ts-ignore
   const loadingAnimation = document.getElementById("loadingAnimation");
 
   // Load saved settings first
@@ -1134,20 +1176,24 @@ async function initializeLevel() {
   }
 
   if (controlMethodSelect) {
+    // @ts-ignore
     controlMethodSelect.value = SettingsManager.current.controlMethod;
   }
 
   if (practiceModeCheckbox) {
+    // @ts-ignore
     practiceModeCheckbox.checked = SettingsManager.current.practiceMode;
     GameState.setState({ isPracticeMode: SettingsManager.current.practiceMode });
   }
 
   if (autoRestartCheckbox) {
+    // @ts-ignore
     autoRestartCheckbox.checked = SettingsManager.current.autoRestartEnabled;
     autoRestartEnabled = SettingsManager.current.autoRestartEnabled;
 
     // Add change event listener for auto restart
     autoRestartCheckbox.addEventListener("change", function () {
+      // @ts-ignore
       autoRestartEnabled = this.checked;
       SettingsManager.current.autoRestartEnabled = autoRestartEnabled;
       SettingsManager.save();
@@ -1157,8 +1203,10 @@ async function initializeLevel() {
   // Visual effects setup
   const visualEffectsCheckbox = document.getElementById("visualEffects");
   if (visualEffectsCheckbox) {
+    // @ts-ignore
     visualEffectsCheckbox.checked = SettingsManager.current.visualEffects;
     visualEffectsCheckbox.addEventListener("change", function () {
+      // @ts-ignore
       SettingsManager.current.visualEffects = this.checked;
       SettingsManager.save();
     });
@@ -1192,6 +1240,7 @@ async function initializeLevel() {
   // Practice mode setup
   if (practiceModeCheckbox) {
     practiceModeCheckbox.addEventListener("change", async function () {
+      // @ts-ignore
       const practiceMode = this.checked;
       GameState.setState({ isPracticeMode: practiceMode });
       SettingsManager.current.practiceMode = practiceMode;
@@ -1200,9 +1249,11 @@ async function initializeLevel() {
       // Enable/disable game speed control
       const gameSpeedSelect = document.getElementById("gameSpeed");
       if (gameSpeedSelect) {
+        // @ts-ignore
         gameSpeedSelect.disabled = !practiceMode;
         if (!practiceMode) {
           GameState.setState({ gameSpeed: 4 });
+          // @ts-ignore
           gameSpeedSelect.value = "1";
           SettingsManager.current.gameSpeed = 4;
           SettingsManager.save();
@@ -1210,6 +1261,7 @@ async function initializeLevel() {
           // Initialize game speed when practice mode is enabled
           const newGameSpeed = SettingsManager.current.gameSpeed || 4;
           GameState.setState({ gameSpeed: newGameSpeed });
+          // @ts-ignore
           gameSpeedSelect.value = (newGameSpeed / 4).toString();
         }
       }
@@ -1243,15 +1295,18 @@ async function initializeLevel() {
   if (gameSpeedSelect) {
     // Initialize game speed select state
     const state = GameState.getState();
+    // @ts-ignore
     gameSpeedSelect.disabled = !state.isPracticeMode;
     if (SettingsManager.current.gameSpeed) {
       GameState.setState({ gameSpeed: SettingsManager.current.gameSpeed });
+      // @ts-ignore
       gameSpeedSelect.value = SettingsManager.current.gameSpeed.toString();
     }
 
     gameSpeedSelect.addEventListener("change", function () {
       const currentState = GameState.getState();
       if (currentState.isPracticeMode) {
+        // @ts-ignore
         const speedMultiplier = parseFloat(this.value);
         GameState.setState({ gameSpeed: 4 * speedMultiplier });
         SettingsManager.current.gameSpeed = 4 * speedMultiplier;
@@ -1263,6 +1318,7 @@ async function initializeLevel() {
   // Control method setup
   if (controlMethodSelect) {
     controlMethodSelect.addEventListener("change", function () {
+      // @ts-ignore
       const method = this.value;
       SettingsManager.current.controlMethod = method;
       SettingsManager.save();
@@ -1276,7 +1332,7 @@ async function initializeLevel() {
  * Configures control scheme based on user selection
  * @param {string} method - 'space', 'click', or 'both'
  */
-function setupControls(method) {
+export function setupControls(method) {
   // Remove all existing event listeners first
   document.removeEventListener("keydown", handleSpaceJump);
   document.removeEventListener("mousedown", handleMouseJump);
@@ -1295,16 +1351,9 @@ function setupControls(method) {
   }
 }
 
-// Make setupControls globally accessible
+// Make setupControls globally accessible for backwards compatibility
+// @ts-ignore
 window.setupControls = setupControls;
-
-/**
- * Preloads all game assets before starting
- * Returns a Promise that resolves when all assets are loaded
- */
-async function preloadAssets() {
-  await Promise.all([loadAudio(), loadImages(), loadLevelData()]);
-}
 
 /**
  * Toggles game pause state and updates UI accordingly
@@ -1353,16 +1402,20 @@ const colorSteps = [
   COLOR_MAP["-8"],
   COLOR_MAP["-9"],
 ];
+// @ts-ignore
 let colorIndex = 0;
+// @ts-ignore
 let transitionFactor = 0;
 const totalTransitionTime = 10; // Total time for all transitions
 
 // Calculate transition speed and duration
 const numberOfTransitions = colorSteps.length - 1;
 const transitionDuration = totalTransitionTime / numberOfTransitions;
+// @ts-ignore
 const transitionSpeed = 1 / (transitionDuration * 60); // Assuming 60 frames per second
 
 // ===== Color =====
+// @ts-ignore
 const COLOR_TRANSITION = {
   DURATION: 2, // Duration of each color transition in seconds
   SPEED: 0.0052, // Speed of transition (smaller = slower)
@@ -1515,6 +1568,7 @@ function extractColorCode(code) {
  * Enhanced level data validation
  * @throws {Error} If validation fails
  */
+// @ts-ignore
 function validateLevelData(matrix) {
   if (!matrix || !Array.isArray(matrix)) {
     throw new Error("Invalid level data: matrix must be an array");
@@ -1535,17 +1589,20 @@ function validateLevelData(matrix) {
     if (typeof code === "string") {
       const props = code.split("/");
       // First property is always the type
-      blockType = parseInt(props[0]);
+      // @ts-ignore
+      const blockType = parseInt(props[0]);
 
       // Process other properties
       for (let i = 1; i < props.length; i++) {
         const prop = props[i];
         if (prop.startsWith("-")) {
           // Color property (negative number)
-          blockColor = COLOR_MAP[parseInt(prop)];
+          // @ts-ignore
+          const blockColor = COLOR_MAP[parseInt(prop)];
         } else if (prop.startsWith("@")) {
           // Rotation property
-          blockRotation = parseInt(prop.substring(1));
+          // @ts-ignore
+          const blockRotation = parseInt(prop.substring(1));
         }
       }
     } else if (code < 0 && !COLOR_MAP[code]) {
@@ -1607,6 +1664,7 @@ function validateLevelData(matrix) {
 /**
  * Enhanced touch controls setup
  */
+// @ts-ignore
 function initializeTouchControls() {
   const touchThreshold = 20; // pixels
   let touchStartY = 0;
@@ -1772,34 +1830,3 @@ function cleanupParticles() {
   // Clear particles array
   particles = [];
 }
-
-//===== Error Handling =====
-function showError(message, container) {
-  const errorElement = document.createElement("div");
-  errorElement.className = "error-message";
-  const p = document.createElement("p");
-  p.textContent = message;
-  const button = document.createElement("button");
-  button.textContent = "OK";
-  button.onclick = () => errorElement.remove();
-  errorElement.appendChild(p);
-  errorElement.appendChild(button);
-  container.appendChild(errorElement);
-}
-
-function showLoadingError(message, isBuiltIn = false) {
-  const container = document.querySelector(
-    isBuiltIn
-      ? ".built-in-levels #current-level"
-      : ".online-levels #current-level"
-  );
-  if (container) {
-    const p = document.createElement("p");
-    p.textContent = message; // Use textContent instead of innerHTML
-    container.innerHTML = ""; // Clear existing content
-    container.appendChild(p);
-  }
-}
-
-// Make showLoadingError globally accessible
-window.showLoadingError = showLoadingError;

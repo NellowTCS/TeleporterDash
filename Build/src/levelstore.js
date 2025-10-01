@@ -1,6 +1,7 @@
 // Store levels array
-import { DatabaseManager } from './databaseManager.js';
-import './levelPreview.js';
+import { DatabaseManager } from './Utilities/databaseManager.js';
+import { DOMManager } from './Utilities/domManager.js';
+import './Utilities/levelPreview.js';
 
 const storeLevels = [];
 const GITHUB_API_BASE =
@@ -30,7 +31,7 @@ async function loadStoreLevels() {
     storeLevels.length = 0;
 
     // Show loading state
-    document.getElementById("levelGrid").innerHTML = `
+    DOMManager.getElement("#levelGrid").innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center;">
                         Loading levels...
                     </div>`;
@@ -87,6 +88,12 @@ async function loadStoreLevels() {
         return levelData;
       } catch (error) {
         console.error(`Error loading level ${file.name}:`, error);
+        // Provide more detailed error information
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
         return null;
       }
     });
@@ -107,12 +114,16 @@ async function loadStoreLevels() {
     displayLevels(storeLevels);
   } catch (error) {
     console.error("Error loading levels from GitHub:", error);
-    document.getElementById("levelGrid").innerHTML = `
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
+    
+    const errorMessage = error.message || error.name || "Error loading levels. Please try again later.";
+    DOMManager.getElement("#levelGrid").innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; color: red;">
-                        ${
-                          error.message ||
-                          "Error loading levels. Please try again later."
-                        }
+                        ${errorMessage}
                     </div>`;
   }
 }
@@ -173,7 +184,9 @@ function updateLevelCard(filename) {
     const deleteButton = card.querySelector(".delete-button");
 
     downloadButton.textContent = "Play Level 🎮";
+    // @ts-ignore
     downloadButton.disabled = false;
+    // @ts-ignore
     downloadButton.onclick = () => startGame(filename);
 
     deleteButton.classList.remove("hidden");
@@ -182,7 +195,7 @@ function updateLevelCard(filename) {
 
 // ===== Level Display System =====
 function displayLevels(levels) {
-  const levelGrid = document.getElementById("levelGrid");
+  const levelGrid = DOMManager.getElement("#levelGrid");
 
   if (!levels || levels.length === 0) {
     levelGrid.innerHTML = `
@@ -360,7 +373,7 @@ function filterLevels(criteria) {
       filtered.sort((a, b) => {
         const dateA = new Date(a.dateAdded || 0);
         const dateB = new Date(b.dateAdded || 0);
-        return dateB - dateA;
+        return dateB.getTime() - dateA.getTime();
       });
       break;
     case "popular":
@@ -400,7 +413,7 @@ window.onload = async () => {
     console.log("Levels loaded");
   } catch (error) {
     console.error("Failed to initialize:", error);
-    document.getElementById("levelGrid").innerHTML = `
+    DOMManager.getElement("#levelGrid").innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; color: red;">
                         Error initializing level store. Please try again later.
                     </div>`;
@@ -413,5 +426,7 @@ function startGame(levelFilename) {
 }
 
 // Export functions for HTML onclick access
+// @ts-ignore
 window.searchLevels = searchLevels;
+// @ts-ignore
 window.filterLevels = filterLevels;
