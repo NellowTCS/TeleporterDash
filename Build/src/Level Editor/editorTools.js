@@ -4,14 +4,60 @@ import { updateSelectedColorIndicator } from "./editorColorPicker.js";
 import { GameState } from "../Utilities/gameState.js";
 
 // Handle Rotation Display and Controls
-const tools = document.querySelectorAll(".tool");
-const rotationGroup = document.getElementById("rotationGroup");
-const rotateLeft = document.getElementById("rotateLeft");
-const rotateRight = document.getElementById("rotateRight");
-const rotationDisplay = document.getElementById("rotationDisplay");
+let tools, rotationGroup, rotateLeft, rotateRight, rotationDisplay;
+
+function activateTool(button) {
+  if (!button) return;
+
+  document
+    .querySelectorAll(".tool")
+    .forEach((t) => t.classList.remove("active"));
+  button.classList.add("active");
+
+  const toolType = button.dataset.type || "select";
+  const nextState = { currentTool: toolType };
+  if (toolType !== "c") {
+    nextState.lastToolBeforeColor = toolType;
+  }
+  GameState.setEditorState(nextState);
+
+  const colorPickerGroup = document.getElementById("colorPickerGroup");
+  if (colorPickerGroup) {
+    colorPickerGroup.style.display = toolType === "c" ? "block" : "none";
+  }
+
+  if (toolType === "c") {
+    const sectionColorPicker = document.getElementById("colorPicker");
+    if (sectionColorPicker instanceof HTMLSelectElement && !sectionColorPicker.value) {
+      sectionColorPicker.value = GameState.current.editor.selectedColor.toString();
+    }
+    updateSelectedColorIndicator();
+  }
+
+  const isRotatable = ["2", "3"].includes(toolType);
+  if (rotationGroup) {
+    rotationGroup.style.display = isRotatable ? "block" : "none";
+  }
+
+  if (!isRotatable) {
+    GameState.setEditorState({ currentRotation: 0 });
+    updateRotationDisplay();
+  }
+}
+
+// Initialize elements when DOM is ready
+function initializeElements() {
+  tools = document.querySelectorAll(".tool");
+  rotationGroup = document.getElementById("rotationGroup");
+  rotateLeft = document.getElementById("rotateLeft");
+  rotateRight = document.getElementById("rotateRight");
+  rotationDisplay = document.getElementById("rotationDisplay");
+}
 
 function updateRotationDisplay() {
-  rotationDisplay.textContent = `${GameState.current.editor.currentRotation}°`;
+  if (rotationDisplay) {
+    rotationDisplay.textContent = `${GameState.current.editor.currentRotation}°`;
+  }
 }
 
 function rotateBlock(direction) {
@@ -24,76 +70,84 @@ function rotateBlock(direction) {
   updateRotationDisplay();
 }
 
-rotateLeft.addEventListener("click", () => rotateBlock(-1));
-rotateRight.addEventListener("click", () => rotateBlock(1));
-
-// Keyboard controls for rotation
-document.addEventListener("keydown", (e) => {
-  if (!["2", "3"].includes(GameState.current.editor.currentTool)) return; // Only rotate spikes and teleporters
-
-  if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-    rotateBlock(-1);
-  } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-    rotateBlock(1);
+export function initializeEditorTools() {
+  initializeElements();
+  
+  if (rotateLeft) {
+    rotateLeft.addEventListener("click", () => rotateBlock(-1));
   }
-});
+  if (rotateRight) {
+    rotateRight.addEventListener("click", () => rotateBlock(1));
+  }
 
-// Handle Tool Selection
-document.querySelectorAll(".tool").forEach((tool) => {
-  tool.addEventListener("click", function () {
-    document
-      .querySelectorAll(".tool")
-      .forEach((t) => t.classList.remove("active"));
-    this.classList.add("active");
-    GameState.setEditorState({ currentTool: this.dataset.type });
+  // Keyboard controls for rotation
+  document.addEventListener("keydown", (e) => {
+    if (!["2", "3"].includes(GameState.current.editor.currentTool)) return; // Only rotate spikes and teleporters
 
-    // Show/hide color picker based on tool selection
-    const colorPickerGroup = document.getElementById("colorPickerGroup");
-    if (GameState.current.editor.currentTool === "c") {
-      colorPickerGroup.style.display = "block";
-      // Set initial color if not already set
-      const sectionColorPicker = document.getElementById("colorPicker");
-      // @ts-ignore
-      if (!sectionColorPicker.value) {
-        // @ts-ignore
-        sectionColorPicker.value =
-          GameState.current.editor.selectedColor.toString();
-      }
-      updateSelectedColorIndicator();
-    } else {
-      colorPickerGroup.style.display = "none";
-    }
-
-    // Show/hide rotation controls based on tool
-    const isRotatable = ["2", "3"].includes(
-      GameState.current.editor.currentTool
-    ); // Spikes and teleporters
-    rotationGroup.style.display = isRotatable ? "block" : "none";
-
-    // Reset rotation when switching tools
-    if (!isRotatable) {
-      GameState.setEditorState({ currentRotation: 0 });
-      updateRotationDisplay();
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      rotateBlock(-1);
+    } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      rotateBlock(1);
     }
   });
-});
 
-// // Anti Arrow Scroll
-window.addEventListener("keydown", function (e) {
-  if ([37, 38, 39, 40].indexOf(e.keyCode) > -1) {
-    e.preventDefault();
-  }
-});
-
-// Add event listener for rotation buttons
-document.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowUp") {
-    const newRotation = (GameState.current.editor.currentRotation + 90) % 360;
-    GameState.setEditorState({ currentRotation: newRotation });
-  } else if (e.key === "ArrowDown") {
-    const newRotation = (GameState.current.editor.currentRotation - 90) % 360;
-    GameState.setEditorState({
-      currentRotation: newRotation < 0 ? newRotation + 360 : newRotation,
+  // Handle Tool Selection
+  if (tools) {
+    tools.forEach((tool) => {
+      tool.addEventListener("click", () => activateTool(tool));
     });
   }
-});
+
+  // Keyboard shortcuts for quick tool swapping
+  const shortcutMap = {
+    "1": "select",
+    "2": "0",
+    "3": "1",
+    "4": "2",
+    "5": "3",
+    "6": "4",
+    "7": "c",
+  };
+
+  document.addEventListener("keydown", (e) => {
+    if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+
+    const activeElement = document.activeElement;
+    if (
+      activeElement &&
+      (activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.tagName === "SELECT" ||
+        (activeElement instanceof HTMLElement && activeElement.isContentEditable))
+    ) {
+      return;
+    }
+
+    const targetType = shortcutMap[e.key];
+    if (!targetType) return;
+
+    const targetButton = Array.from(tools || []).find(
+      (btn) => btn.dataset.type === targetType
+    );
+
+    if (targetButton) {
+      e.preventDefault();
+      activateTool(targetButton);
+    }
+  });
+
+  // Ensure the initial tool state reflects the current GameState
+  const initiallyActive = document.querySelector(".tool.active") || tools?.[0];
+  if (initiallyActive) {
+    activateTool(initiallyActive);
+  }
+
+  // Anti Arrow Scroll
+  window.addEventListener("keydown", function (e) {
+    if ([37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+      e.preventDefault();
+    }
+  });
+}
+
+

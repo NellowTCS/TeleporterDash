@@ -85,11 +85,18 @@ export const DOMManager = {
 
   // Get cached element or query and cache it
   getElement(selector) {
-    // If not cached or cached as null, try to query again
-    if (this.elements[selector] === undefined || this.elements[selector] === null) {
-      this.elements[selector] = document.querySelector(selector);
+    if (this.elements[selector] !== undefined) {
+      return this.elements[selector];
     }
-    return this.elements[selector];
+
+    const element = document.querySelector(selector);
+    if (element) {
+      this.elements[selector] = element;
+      return element;
+    } else {
+      // Don't cache null, so it can be retried later
+      return null;
+    }
   },
 
   // Get element by ID (legacy support)
@@ -107,23 +114,15 @@ export const DOMManager = {
   events: {},
 
   // Add event listener with optional cleanup tracking
-  addEvent(element, event, handler, options = {}) {
-    if (typeof element === 'string') {
-      element = this.getElement(element);
-    }
-
+  addEvent(selector, event, handler, options = {}) {
+    const element = this.getElement(selector);
     if (element) {
       element.addEventListener(event, handler, options);
-
-      // Track for potential cleanup
-      const key = `${element.id || element.className || 'unknown'}_${event}`;
-      if (!this.events[key]) {
-        this.events[key] = [];
-      }
-      this.events[key].push({ element, event, handler, options });
+      return true;
+    } else {
+      console.warn(`Cannot add event ${event} to missing element: ${selector}`);
     }
-
-    return this;
+    return false;
   },
 
   // Remove event listener
@@ -139,22 +138,13 @@ export const DOMManager = {
     return this;
   },
 
-  // Initialize common elements (call once on app start)
-  initializeElements() {
-    // Cache all commonly used elements
-    Object.keys(this.selectors).forEach(key => {
-      const selector = this.selectors[key];
-      this.getElement(selector);
-    });
-
-    return this;
-  },
-
   // Utility methods for common operations
   setValue(selector, value) {
     const element = this.getElement(selector);
     if (element) {
       element.value = value;
+    } else {
+      console.warn(`Cannot set value on missing element: ${selector}`);
     }
     return this;
   },

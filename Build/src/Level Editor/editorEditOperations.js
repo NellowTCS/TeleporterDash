@@ -1,6 +1,6 @@
-import { GameState } from "../Utilities/gameState";
-import { DOMManager } from "../Utilities/domManager";
-import { updateGridVisuals } from "./editorGrid";
+import { GameState } from "../Utilities/gameState.js";
+import { DOMManager } from "../Utilities/domManager.js";
+import { updateGridVisuals } from "./editorGrid.js";
 
 // ===== Edit Operations Manager =====
 // Handles undo/redo, copy/paste, selection, and related operations
@@ -193,6 +193,7 @@ class EditOperationsManager {
       this.showNotification("Selection copied to clipboard");
       return true;
     }
+    this.showNotification("Select some cells first", "warning");
     return false;
   }
 
@@ -251,7 +252,23 @@ class EditOperationsManager {
 
     if (pastedCells > 0) {
       updateGridVisuals();
-      this.clearSelection();
+      const startRow = Math.max(1, pasteRow);
+      const startCol = Math.max(0, pasteCol);
+      const endRow = Math.min(
+        GameState.current.editor.gridHeight - 1,
+        pasteRow + this.clipboard.rows - 1
+      );
+      const endCol = Math.min(
+        GameState.current.editor.gridWidth - 1,
+        pasteCol + this.clipboard.cols - 1
+      );
+      this.selection = {
+        active: true,
+        start: { row: startRow, col: startCol },
+        end: { row: endRow, col: endCol }
+      };
+      this.updateSelectionDisplay();
+      this.lastMousePosition = { row: startRow, col: startCol };
       this.showNotification(`Pasted ${pastedCells} cells at row ${pasteRow + 1}, col ${pasteCol + 1}`);
       return true;
     } else {
@@ -262,7 +279,10 @@ class EditOperationsManager {
 
   deleteSelection() {
     const selection = this.getSelection();
-    if (!selection) return false;
+    if (!selection) {
+      this.showNotification("Nothing selected to delete", "warning");
+      return false;
+    }
 
     this.saveState();
 
@@ -277,6 +297,7 @@ class EditOperationsManager {
     }
 
     updateGridVisuals();
+    this.updateSelectionDisplay();
     this.showNotification("Selection cleared");
     return true;
   }
@@ -378,7 +399,7 @@ class EditOperationsManager {
   // ===== Event Listeners =====
   setupEventListeners() {
     // Keyboard shortcuts
-    DOMManager.addEvent(document, "keydown", (e) => {
+    document.addEventListener("keydown", (e) => {
       // Hide context menu on any key press
       this.hideContextMenu();
       
@@ -436,31 +457,26 @@ class EditOperationsManager {
       if (e.target.classList && e.target.classList.contains('cell')) {
         const row = parseInt(e.target.getAttribute('data-row') || '0');
         const col = parseInt(e.target.getAttribute('data-col') || '0');
+        const tool = GameState.current.editor.currentTool;
+        const isSelectTool = tool === 'select';
+        const modifierSelect = tool === '0' && (e.shiftKey || e.ctrlKey || e.metaKey);
         
         // Track mouse position for pasting (skip color row)
         if (row > 0) {
           this.lastMousePosition = { row, col };
         }
         
-        if (e.shiftKey && GameState.current.editor.currentTool === '0') {
-          // Only allow selection when using empty/select tool
+        if (isSelectTool || modifierSelect) {
           e.preventDefault();
           e.stopPropagation();
           this.isSelecting = true;
-          if (this.selection.active && this.selection.start) {
-            // Extend existing selection
+          if (this.selection.active && this.selection.start && (e.shiftKey || e.ctrlKey || e.metaKey)) {
             this.updateSelection(row, col);
           } else {
-            // Start new selection
             this.startSelection(row, col);
           }
-        } else if ((e.ctrlKey || e.metaKey) && GameState.current.editor.currentTool === '0') {
-          // Ctrl+click for individual cell selection (only with select tool)
-          e.preventDefault();
-          e.stopPropagation();
-          this.startSelection(row, col);
-        } else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
-          // Regular click clears selection
+        } else if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !isSelectTool) {
+          // Regular click with non-select tools clears selection
           this.clearSelection();
         }
       }
@@ -478,7 +494,7 @@ class EditOperationsManager {
         }
       }
       
-      if (this.isSelecting && e.target.classList && e.target.classList.contains('cell') && GameState.current.editor.currentTool === '0') {
+      if (this.isSelecting && e.target.classList && e.target.classList.contains('cell')) {
         e.preventDefault();
         e.stopPropagation();
         const row = parseInt(e.target.getAttribute('data-row') || '0');
@@ -487,7 +503,7 @@ class EditOperationsManager {
       }
     });
 
-    DOMManager.addEvent(document, "mouseup", () => {
+    document.addEventListener("mouseup", () => {
       this.isSelecting = false;
     });
 
@@ -509,8 +525,8 @@ class EditOperationsManager {
     });
 
     // Hide context menu on outside click
-    DOMManager.addEvent(document, "click", (e) => {
-      if (!this.contextMenu.contains(e.target)) {
+    document.addEventListener("click", (e) => {
+      if (!(e.target instanceof Node) || !this.contextMenu.contains(e.target)) {
         this.hideContextMenu();
       }
     });

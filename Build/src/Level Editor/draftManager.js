@@ -1,6 +1,6 @@
-import { DatabaseManager } from "../Utilities/databaseManager";
-import { GameState } from "../Utilities/gameState";
-import { AudioManager } from "../Utilities/audioManager";
+import { DatabaseManager } from "../Utilities/databaseManager.js";
+import { GameState } from "../Utilities/gameState.js";
+import { AudioManager } from "../Utilities/audioManager.js";
 import { DOMManager } from "../Utilities/domManager.js";
 import { createGrid, updateGridVisuals } from "./editorGrid.js";
 

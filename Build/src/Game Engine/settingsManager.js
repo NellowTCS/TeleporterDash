@@ -1,7 +1,5 @@
 // Settings for Teleporter Dash
 import { GameState } from '../Utilities/gameState.js';
-import { AudioManager } from '../Utilities/audioManager.js';
-import { setupControls } from '../gameloader.js';
 
 export const SettingsManager = {
   current: {
@@ -30,22 +28,8 @@ export const SettingsManager = {
         gameSpeed: this.current.gameSpeed
       });
 
-      // Apply volume to all audio elements
-      [
-        AudioManager.backgroundMusic,
-        AudioManager.practiceMusic,
-        AudioManager.jumpSound,
-        AudioManager.deathSound,
-        AudioManager.completionSound,
-      ].forEach((audio) => {
-        if (audio) {
-          audio.volume = this.current.volume / 100;
-          audio.muted = this.current.isMuted;
-        }
-      });
-
       // Apply control method
-      setupControls(this.current.controlMethod);
+      // Note: setupControls is called separately in the game code
     }
   },
 };

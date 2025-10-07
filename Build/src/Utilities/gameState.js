@@ -52,7 +52,7 @@ export const GameState = {
       levelMatrix: [],
 
       // Tools
-      currentTool: "0",
+      currentTool: "select",
       currentRotation: 0,
       selectedColor: -1, // Default to blue
       selectedBlockColor: 0,
@@ -244,7 +244,7 @@ export const GameState = {
 
   resetEditorState() {
     this.setEditorState({
-      currentTool: "0",
+      currentTool: "select",
       currentRotation: 0,
       selectedColor: -1,
       selectedBlockColor: 0,

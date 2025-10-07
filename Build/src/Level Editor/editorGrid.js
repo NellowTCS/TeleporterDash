@@ -1,6 +1,7 @@
-import { COLOR_MAP } from "../Utilities/constants";
-import { GameState } from "../Utilities/gameState";
+import { COLOR_MAP } from "../Utilities/constants.js";
+import { GameState } from "../Utilities/gameState.js";
 import { DOMManager } from "../Utilities/domManager.js";
+import { PerformanceMonitor } from "./performanceMonitor.js";
 
 // Note: EditOperations import is lazy-loaded to avoid circular dependency
 let EditOperations = null;
@@ -38,6 +39,9 @@ export function updateGridSize(gridWidthInput, gridHeightInput, grid) {
 
 // // Create Initial Grid and Update Dimensions
 export function createGrid(grid, onCellChangeCallback = null) {
+  const perfMonitor = new PerformanceMonitor();
+  perfMonitor.startTimer('gridCreation');
+  
   grid.innerHTML = "";
 
   // Set grid dimensions using current GRID_WIDTH and GRID_HEIGHT
@@ -124,6 +128,11 @@ export function createGrid(grid, onCellChangeCallback = null) {
   } else {
     EditOperations.onGridRecreated();
   }
+  
+  const gridTime = perfMonitor.endTimer('gridCreation');
+  if (gridTime > 100) { // Log if grid creation takes more than 100ms
+    console.log(`⚠️ Grid creation took ${gridTime.toFixed(2)}ms for ${GameState.current.editor.gridWidth}x${GameState.current.editor.gridHeight} grid`);
+  }
 }
 
 // // Handle Clicks in Grid
@@ -133,8 +142,14 @@ export function handleCellClick(e, onChangeCallback = null) {
 
   const row = parseInt(cell.dataset.row);
   const col = parseInt(cell.dataset.col);
+  const currentTool = GameState.current.editor.currentTool;
 
-  if (GameState.current.editor.currentTool === "c") {
+  // Selection tool never modifies the grid directly
+  if (currentTool === "select") {
+    return;
+  }
+
+  if (currentTool === "c") {
     if (row === 0) {
       // Only allow color placement in row 0
       updateCell(row, col, GameState.current.editor.selectedColor, onChangeCallback);
@@ -150,10 +165,10 @@ export function handleCellClick(e, onChangeCallback = null) {
     let blockValue;
 
     // If using color tool, treat it as a platform (2) with color
-    if (GameState.current.editor.currentTool === "c") {
+    if (currentTool === "c") {
       blockValue = "2"; // Platform type
     } else {
-      blockValue = GameState.current.editor.currentTool;
+      blockValue = currentTool;
     }
 
     // Add rotation if applicable
@@ -165,10 +180,10 @@ export function handleCellClick(e, onChangeCallback = null) {
     if (
       (GameState.current.editor.currentTool === "c" ||
         GameState.current.editor.selectedBlockColor !== 0) &&
-      GameState.current.editor.currentTool !== "0"
+        currentTool !== "0"
     ) {
       blockValue += `/${
-        GameState.current.editor.currentTool === "c"
+        currentTool === "c"
           ? GameState.current.editor.selectedColor
           : GameState.current.editor.selectedBlockColor
       }`;

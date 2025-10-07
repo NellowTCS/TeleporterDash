@@ -1,5 +1,5 @@
-import { COLOR_MAP } from "../Utilities/constants";
-import { GameState } from "../Utilities/gameState";
+import { COLOR_MAP } from "../Utilities/constants.js";
+import { GameState } from "../Utilities/gameState.js";
 
 // ===== Color Picker Functions =====
 
@@ -83,19 +83,6 @@ export function initializeColorPickers() {
     }
   });
 }
-
-// Add event listener for rotation buttons
-document.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowUp") {
-    const newRotation = (GameState.current.editor.currentRotation + 90) % 360;
-    GameState.setEditorState({ currentRotation: newRotation });
-  } else if (e.key === "ArrowDown") {
-    const newRotation = (GameState.current.editor.currentRotation - 90) % 360;
-    GameState.setEditorState({
-      currentRotation: newRotation < 0 ? newRotation + 360 : newRotation,
-    });
-  }
-});
 
 // // Color Picker
 const colorPicker = document.getElementById("colorPicker");

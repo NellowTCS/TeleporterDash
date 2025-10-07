@@ -106,8 +106,7 @@ export const AudioManager = {
       this.practiceMusic.loop = true;
 
       // Set volumes
-      const volumeSlider = DOMManager.getElement("#volumeSlider");
-      const volumeLevel = volumeSlider ? (volumeSlider.value / 100) : 0.9; // Default to 90% if element not found
+      const volumeLevel = SettingsManager.current.volume / 100;
       this.backgroundMusic.volume = volumeLevel * 0.6;
       this.practiceMusic.volume = volumeLevel * 0.6;
       this.jumpSound.volume = volumeLevel * 0.2;
