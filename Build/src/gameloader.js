@@ -1224,6 +1224,34 @@ async function fadeOutMusic() {
 }
 
 /**
+ * Configures control scheme based on user selection
+ * @param {string} method - 'space', 'click', or 'both'
+ */
+export function setupControls(method) {
+  // Remove all existing event listeners first
+  document.removeEventListener("keydown", handleSpaceJump);
+  document.removeEventListener("mousedown", handleMouseJump);
+  document.removeEventListener("keydown", (e) => {
+    if (e.code === "Space") jump();
+  });
+
+  // Apply new control scheme
+  if (method === "space") {
+    document.addEventListener("keydown", handleSpaceJump);
+  } else if (method === "click") {
+    document.addEventListener("mousedown", handleMouseJump);
+  } else if (method === "both") {
+    document.addEventListener("keydown", handleSpaceJump);
+    document.addEventListener("mousedown", handleMouseJump);
+  }
+}
+
+// Make setupControls globally accessible for backwards compatibility
+// @ts-ignore
+window.setupControls = setupControls;
+
+
+/**
  * Initializes level settings and UI controls
  * Sets up event listeners for all game settings
  */
