@@ -640,11 +640,13 @@ function updateGame() {
 
   // Don't update if game isn't in active state
   if (!state.isLevelStarted || state.isGameOver || state.isLevelComplete) {
+    // Still schedule frames to allow unpausing or UI updates, but avoid heavy updates
+    animationFrameId = requestAnimationFrame(updateGame);
     return;
   }
 
   if (state.isPaused) {
-    requestAnimationFrame(updateGame);
+    animationFrameId = requestAnimationFrame(updateGame);
     return;
   }
 
@@ -666,8 +668,8 @@ function updateGame() {
     state.currentColumn < state.levelMatrix[0].length &&
     (obstacles.length === 0 ||
       gameContainer.offsetWidth -
-        obstacles[obstacles.length - 1]?.element.offsetLeft >
-        CONSTANTS.COLUMN_WIDTH)
+      obstacles[obstacles.length - 1]?.element.offsetLeft >
+      CONSTANTS.COLUMN_WIDTH)
   ) {
     for (let row = 0; row < state.levelMatrix.length; row++) {
       createObstacleFromMatrix(
@@ -826,7 +828,7 @@ function updateGame() {
 
   // Continue game loop if game is still active
   if (!state.isGameOver && !state.isLevelComplete) {
-    requestAnimationFrame(updateGame);
+    animationFrameId = requestAnimationFrame(updateGame);
   }
 
   // Update camera position to follow player (frame-rate independent)
@@ -1028,8 +1030,9 @@ async function restartGame() {
   player.style.bottom = `${CONSTANTS.GROUND_HEIGHT}px`;
   player.style.transform = "rotate(0deg)";
 
-  // Start game loop
-  updateGame();
+  // Start game loop (assign id)
+  lastFrameTime = performance.now();
+  animationFrameId = requestAnimationFrame(updateGame);
 }
 
 // ===== Event listeners for player input =====
@@ -1114,12 +1117,11 @@ function handleMouseJump(e) {
   }
 }
 
-/**
-        
-         * Updates the progress bar and level completion percentage
-         * Called from updateGame when new obstacles are created
-         * Throttled to avoid performance issues
-         */
+/**   
+* Updates the progress bar and level completion percentage
+* Called from updateGame when new obstacles are created
+* Throttled to avoid performance issues
+*/
 function updateProgress() {
   const state = GameState.getState();
   if (!state.levelMatrix || state.levelMatrix.length === 0) return;
@@ -1144,8 +1146,8 @@ function updateProgress() {
   const finalProgress = state.isLevelComplete
     ? 100
     : progress >= 98
-    ? 99 // Force 99% when near the end
-    : clampedProgress;
+      ? 99 // Force 99% when near the end
+      : clampedProgress;
 
   // Update UI elements
   const progressText = DOMManager.getElement("#progressText");
@@ -1439,12 +1441,71 @@ async function initializeLevel() {
       console.log("Control Method: ", method, " set");
     });
   }
+
+  // Attach Start Level button handler (this was missing)
+  if (startLevelBtn) {
+    startLevelBtn.addEventListener("click", startLevel);
+  }
 }
 
 /**
- * Toggles game pause state and updates UI accordingly
- * Handles music pause/resume and button icons
+ * Starts the level: sets GameState, starts music, level timer, and game loop
  */
+async function startLevel() {
+  const prevState = GameState.getState();
+  if (prevState.isLevelStarted) return;
+
+  // Hide settings menu if present
+  const settingsMenu = DOMManager.getElement("#settingsMenu");
+  if (settingsMenu) settingsMenu.style.display = "none";
+
+  // Reset time tracking
+  levelTime = 0;
+  if (levelTimer) {
+    clearInterval(levelTimer);
+    levelTimer = null;
+  }
+
+  GameState.setState({
+    isLevelStarted: true,
+    isGameOver: false,
+    isLevelComplete: false,
+    currentColumn: 0,
+    playerVelocity: 0,
+    rotation: 0,
+    passedBlocks: 0,
+    startTime: Date.now(),
+    currentTime: 0,
+  });
+
+  // Start level time updater (ticks every 100ms for 0.1s resolution)
+  levelTimer = setInterval(() => {
+    levelTime = +(levelTime + 0.1).toFixed(1);
+    GameState.setState({ currentTime: levelTime });
+  }, 100);
+
+  // Play appropriate music if available and not muted
+  const currentState = GameState.getState();
+  const musicToPlay = currentState.isPracticeMode
+    ? AudioManager.practiceMusic
+    : AudioManager.backgroundMusic;
+
+  try {
+    if (!AudioManager.isMuted && musicToPlay) {
+      // Use any tracked lastMusicTime if available
+      const startTime = AudioManager.lastMusicTime || 0;
+      await AudioManager.play(musicToPlay, startTime);
+    }
+  } catch (err) {
+    console.error("Error starting music:", err);
+  }
+
+  // Prepare frame timing and start the loop
+  lastFrameTime = performance.now();
+  animationFrameId = requestAnimationFrame(updateGame);
+}
+
+// Toggle pause with P key (already registered elsewhere)
 document.addEventListener("keydown", (e) => {
   if (e.code === "KeyP") {
     toggleGameState("pause");
@@ -1510,7 +1571,7 @@ function updateBackgroundColor() {
     const currentRawCode = state.levelColorRow[adjustedColumn];
     const nextRawCode =
       state.levelColorRow[
-        Math.min(adjustedColumn + 1, state.levelColorRow.length - 1)
+      Math.min(adjustedColumn + 1, state.levelColorRow.length - 1)
       ];
 
     // Don't force negative numbers, allow 0 for black
