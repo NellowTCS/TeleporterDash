@@ -1,25 +1,26 @@
 {
-  "name": "web-template",
-  "version": "0.1.0",
-  "description": "My typical web dev starter project.",
+  "name": "teleporter-dash",
+  "version": "1.4.2",
+  "description": "A game I made.",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "make-pretty": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,scss,md,html,cjs}'"
+    "make-pretty": "prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css,scss,md,html,cjs}'",
+    "count-lines": "cloc . --exclude-dir=node_modules,build,dist --exclude-ext=lock,json"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NellowTCS/Web-Template.git"
+    "url": "git+https://github.com/TeleporterDash/TeleporterDash.git"
   },
   "author": "NellowTCS",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/NellowTCS/Web-Template/issues"
+    "url": "https://github.com/TeleporterDash/TeleporterDash/issues"
   },
-  "homepage": "https://github.com/NellowTCS/Web-Template#readme",
+  "homepage": "https://github.com/TeleporterDash/TeleporterDash#readme",
   "dependencies": {
     "jszip": "^3.10.1",
     "vanilla-toast": "^0.5.0",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@vite-pwa/assets-generator": "^1.0.2",
+    "cloc": "^2.6.0-cloc",
     "prettier": "^3.6.2",
     "vite": "^7.1.7"
   }
