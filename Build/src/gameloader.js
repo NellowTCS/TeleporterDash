@@ -512,7 +512,7 @@ function updateGame() {
       playerRect &&
       Math.abs(obstacleLeft - (playerRect.left - containerLeft)) < 100
     ) {
-      const collision = checkCollision(player, obstacle.element);
+      const collision = checkCollision(player, obstacle.element, gameContainer);
       if (collision) {
         if (obstacle.type === "finish") {
           levelComplete();
@@ -559,10 +559,11 @@ function updateGame() {
           createParticles("#ff00ff");
           setTimeout(() => createParticles("#ff00ff"), 100);
         } else if (obstacle.type === "platform") {
-          // Pass player element (not playerRect) to physics engine platform handler
+          // Pass gameContainer so platform handler can compute proper bottom snapping
           const platformCollision = handlePlatformCollision(
             player,
             obstacle.element,
+            gameContainer,
           );
           if (platformCollision === "death" && !state.isPracticeMode) {
             gameOver();
@@ -664,7 +665,7 @@ async function gameOver() {
     let particleColor = "#ff0000"; // Default red
     const nearbyObstacles = obstacles.filter(
       (o) =>
-        checkCollision(player, o.element) &&
+        checkCollision(player, o.element, gameContainer) &&
         (o.element.style.backgroundColor || o.element.style.borderBottomColor),
     );
 
