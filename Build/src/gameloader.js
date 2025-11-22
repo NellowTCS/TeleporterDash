@@ -5,23 +5,30 @@ import { LevelLoader } from "./TDEngine/levelLoader.js";
 import { SettingsManager } from "./TDEngine/settingsManager.js";
 import { ScoreManager } from "./TDEngine/scoreManager.js";
 import { DatabaseManager } from "./Utilities/databaseManager.js";
-import { COLOR_MAP, CONSTANTS } from "./Utilities/constants.js";
+import { COLOR_MAP, COLOR_STEPS, CONSTANTS } from "./Utilities/constants.js";
 import { DOMManager } from "./Utilities/domManager.js";
 import { showLoadingError } from "./Utilities/notificationManager.js";
+import { updateBackgroundColor } from "./Utilities/colorManager.js";
+import { createObstacleFromMatrix, checkCollision, handlePlatformCollision, clearObstacles } from "./TDEngine/physicsEngine.js";
+import { createParticles, cleanupParticles } from "./TDEngine/particleEngine.js";
 
-// Get reference to game container
-let gameContainer = null;
-let player = null;
+// ===== Variables =====
+
+// TODO: don't do export let
+export let gameContainer = null;
+export let player = null;
+export let obstacles = [];             // Array of all active obstacles
+export let particles = [];             // Array of active particle effects
+
+// Game Container
 let restartBtn = null;
 let muteButton = null;
+let levelCompleteElement = null;
+let gameOverElement = null;
 
-// Make player globally accessible for other modules
 // @ts-ignore
 window.player = player;
 
-// Timer variables (needs to be accessible for clearing)
-let levelTimer = null;
-let levelTime = 0;
 
 // Extract levelId from URL parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -32,169 +39,66 @@ if (urlParams.has("level")) {
   levelId = urlParams.get("levelFile");
 }
 
-// Color mapping for blocks
-// COLOR_MAP is now imported from constants.js
-
-// Initialize database when page loads
-document.addEventListener("DOMContentLoaded", async () => {
-  // Get DOM elements now that DOM is ready
-  gameContainer = DOMManager.getElement("#gameContainer");
-  player = DOMManager.getElement("#player");
-  restartBtn = DOMManager.getElement("#restartBtn");
-  progressText = DOMManager.getElement("#progressText");
-  progressFill = DOMManager.getElement("#progressFill");
-  pauseMenu = DOMManager.getElement("#pauseMenu");
-  levelCompleteElement = DOMManager.getElement("#levelComplete");
-  gameOverElement = DOMManager.getElement("#gameOver");
-  muteButton = DOMManager.getElement("#muteButton");
-
-  // Make player globally accessible for other modules
-  // @ts-ignore
-  window.player = player;
-
-  // Make progress elements globally accessible
-  // @ts-ignore
-  window.progressText = progressText;
-  // @ts-ignore
-  window.progressFill = progressFill;
-
-  // Single mute button setup
-  if (muteButton) {
-    // Remove any existing listeners by cloning
-    const newMuteButton = muteButton.cloneNode(true);
-    muteButton.parentNode.replaceChild(newMuteButton, muteButton);
-
-    // Add single event listener
-    newMuteButton.addEventListener("click", function () {
-      toggleGameState("mute");
-      this.textContent = AudioManager.isMuted ? "🔇" : "🔊";
-    });
-
-    // Set initial icon
-    newMuteButton.textContent = AudioManager.isMuted ? "🔇" : "🔊";
-  }
-
-  try {
-    console.log("Starting ScoreManager initialization...");
-    await ScoreManager.initialize().catch((error) => {
-      console.error("ScoreManager initialization failed:", error);
-      throw error;
-    });
-    console.log("ScoreManager initialized successfully");
-
-    // Don't automatically show scoreboard on page load
-    // Only show when specifically requested (e.g., level complete)
-
-    // Then proceed with level loading
-    console.log("Starting level initialization...");
-    await DatabaseManager.initDB();
-    await LevelLoader.initializeLevelData();
-    await initializeLevel();
-    console.log("Level initialization complete");
-  } catch (error) {
-    console.error("Error during initialization:", error);
-    showLoadingError(`Failed to initialize: ${error.message}`);
-  }
-
-  // Set up event listeners now that elements are ready
-  if (restartBtn) {
-    restartBtn.addEventListener("click", restartGame);
-  }
-
-  // Resume game from pause menu
-  const resumeBtn = document.getElementById("resumeBtn");
-  if (resumeBtn) {
-    resumeBtn.addEventListener("click", () => toggleGameState("pause"));
-  }
-
-  // Restart game from pause menu
-  const restartFromPauseBtn = document.getElementById("restartFromPauseBtn");
-  if (restartFromPauseBtn) {
-    restartFromPauseBtn.addEventListener("click", () => {
-      pauseMenu.style.display = "none";
-      GameState.setState({ isPaused: false });
-      location.reload();
-    });
-  }
-
-  // Toggle pause with pause button
-  const pauseButton = document.getElementById("pauseButton");
-  if (pauseButton) {
-    pauseButton.addEventListener("click", () => toggleGameState("pause"));
-  }
-
-  // Escape key handler
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      toggleGameState("pause");
-    }
-  });
-});
-
-// ===== Variables =====
-
 // Physics constants
-const gravity = 2000; // Rate at which player falls (pixels/second²)
-const jumpForce = -800; // Initial upward velocity when jumping (pixels/second)
+const gravity = 2000;                  // Rate at which player falls (pixels/second²)
+const jumpForce = -800;                // Initial upward velocity when jumping (pixels/second)
 
 // Game elements
-let obstacles = []; // Array of all active obstacles
-let particles = []; // Array of active particle effects
-let animationFrameId = null; // ID of the current animation frame
+let animationFrameId = null;           // ID of the current animation frame
 
-// DeltaTime variables for frame-rate independence
+// Timing
+let levelTimer = null;
+let levelTime = 0;
 let lastFrameTime = performance.now(); // Timestamp of the last frame
-let deltaTime = 0; // Time elapsed since last frame (in seconds)
-// @ts-ignore
-const TARGET_FPS = 60; // Target frame rate for physics calculations
-const MAX_DELTA_TIME = 1 / 30; // Cap deltaTime to prevent large jumps
+let deltaTime = 0;                     // Time elapsed since last frame (in seconds)
+const TARGET_FPS = 60;                 // Target frame rate for physics calculations
+const MAX_DELTA_TIME = 1 / 30;         // Cap deltaTime to prevent large jumps
 
-// Progress tracking variables
+// Progress
 let progressText = null;
 let progressFill = null;
-let totalColumns = 0; // Will be set when levelMatrix is loaded
-
-// Global jump buffer for keyboard/mouse inputs
-let jumpBufferTime = 0; // milliseconds
-
-let lastJumpPressTime = 0;
-
-// New variable for touch-specific sensitivity
-let touchJumpDelay = 300; // milliseconds
-
-// Progress update timing to optimize performance
+let totalColumns = 0;                  // Will be set when levelMatrix is loaded
 let lastProgressUpdate = 0;
-const progressUpdateInterval = 16; // ~60fps update frequency for progress bar
-let totalBlocks = 0; // Total number of blocks in the level
-// @ts-ignore
-let passedBlocks = 0; // Number of blocks the player has passed
-
-// Position of the finish line in the level matrix
+const progressUpdateInterval = 16;     // ~60fps update frequency for progress bar
+let totalBlocks = 0;                   // Total number of blocks in the level
+let passedBlocks = 0;                  // Number of blocks the player has passed
 let finishLinePosition = 0;
 
-// Auto-restart settings
-let autoRestartEnabled = false; // Whether to automatically restart on death
-// @ts-ignore
-let isRestarting = false; // Whether the game is currently restarting
+// Jumping
+let jumpBufferTime = 0;                // milliseconds
+let lastJumpPressTime = 0;
+let touchJumpDelay = 300;              // milliseconds
 
-// Pause state
-// @ts-ignore
+// Settings 
+let autoRestartEnabled = false;        // Whether to automatically restart on death
+let isRestarting = false;              // Whether the game is currently restarting
+
+// Pause
 let isPaused = false;
 let pauseMenu = null;
 
-// Check if level complete
-let levelCompleteElement = null;
-let gameOverElement = null;
+// Camera
+let cameraOffsetY = 0;
+const CAMERA_FOLLOW_THRESHOLD = 50;    // Reduced from 100 to make camera more responsive
+const MAX_CAMERA_SPEED = 20;           // Increased from 15 to make camera movement smoother
+// @ts-ignore
+window.cameraOffsetY = cameraOffsetY;
 
 // For loading online levels
-// @ts-ignore
 let db;
-// @ts-ignore
 const DB_NAME = "TeleporterDashDB";
-// @ts-ignore
 const STORE_NAME = "downloadedLevels";
-// @ts-ignore
 const DB_VERSION = 2;
+
+// Colors
+let colorIndex = 0;
+
+// Transitions
+let transitionFactor = 0;
+const totalTransitionTime = 10;        // Total time for all transitions
+const numberOfTransitions = COLOR_STEPS.length - 1;
+const transitionDuration = totalTransitionTime / numberOfTransitions;
+const transitionSpeed = 1 / (transitionDuration * 60);
 
 // Initialize GameState with default values
 GameState.setState({
@@ -242,291 +146,6 @@ function toggleGameState(action) {
       }
     }
   }
-}
-
-// Single mute button setup
-
-/**
- * Initializes particles array if it doesn't exist
- * @param {string} color - Color of particles (e.g., '#ff0000' for red)
- */
-function createParticles(color) {
-  // Check if visual effects are enabled
-  if (!SettingsManager.current.visualEffects) return;
-
-  if (!particles) particles = [];
-
-  // Create 10 particles
-  for (let i = 0; i < 10; i++) {
-    const particle = document.createElement("div");
-    particle.className = "particle";
-    particle.style.position = "absolute";
-    particle.style.width = "5px";
-    particle.style.height = "5px";
-    particle.style.backgroundColor = color;
-    particle.style.left = parseInt(player.style.left) + 15 + "px";
-    particle.style.bottom = parseInt(player.style.bottom) + 15 + "px";
-    particle.style.borderRadius = "50%";
-    particle.style.zIndex = "1000";
-
-    gameContainer.appendChild(particle);
-
-    const angle = Math.random() * Math.PI * 2;
-    const speed = (Math.random() * 5 + 2) * 60; // Convert to pixels/second (multiply by 60 for 60 FPS equivalent)
-
-    particles.push({
-      element: particle,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 120, // Convert initial upward velocity to pixels/second
-      life: 1,
-    });
-  }
-}
-
-/**
- * Creates an obstacle based on the type specified in the level matrix
- * @param {number} type - The type of obstacle (0: empty, 1: platform, 2: spike, 3: teleporter, 4: finish)
- * @param {number} row - The row position in the level matrix
- */
-function createObstacleFromMatrix(type, row) {
-  // Parse block properties if type is a string (contains properties)
-  let blockType = type;
-  let blockColor = null;
-  let blockRotation = 0;
-  if (typeof type === "string") {
-    // @ts-ignore
-    const properties = type.split("/");
-    // First property is always the type
-    blockType = parseInt(properties[0]);
-    // First property is always the type
-    blockType = parseInt(properties[0]);
-
-    // Process other properties
-    for (let i = 1; i < properties.length; i++) {
-      const prop = properties[i];
-      if (prop.startsWith("-")) {
-        // Color property (negative number)
-        blockColor = COLOR_MAP[parseInt(prop)];
-      } else if (prop.startsWith("@")) {
-        // Rotation property
-        blockRotation = parseInt(prop.substring(1));
-      }
-    }
-  }
-  // Handle empty blocks (type 0)
-  if (blockType === 0) {
-    const emptyBlock = document.createElement("div");
-    emptyBlock.className = "empty-block";
-    // @ts-ignore
-    emptyBlock.type = "empty";
-    emptyBlock.style.position = "absolute";
-    emptyBlock.style.width = "30px";
-    emptyBlock.style.height = "30px";
-    emptyBlock.style.left = gameContainer.offsetWidth + "px";
-
-    // Invert the row calculation to start from bottom
-    const baseHeight = 50;
-    const rowSpacing = 45; // Match platform block height
-    const state = GameState.getState();
-    const levelHeight = state.levelMatrix ? state.levelMatrix.length : 10; // fallback
-    const invertedRow = levelHeight - 1 - row;
-    emptyBlock.style.bottom = baseHeight + invertedRow * rowSpacing + "px";
-
-    DOMManager.getElement("#cameraContainer").appendChild(emptyBlock);
-    obstacles.push({ element: emptyBlock, type: "empty" });
-    return;
-  }
-
-  // Create obstacle element based on type
-  const obstacle = document.createElement("div");
-
-  if (blockType === 4) {
-    // Finish line
-    obstacle.className = "finishLine";
-    obstacle.style.width = "10px";
-    obstacle.style.height = "350px";
-    obstacle.style.background = "#00ff00";
-    // @ts-ignore
-    obstacle.type = "finish";
-    obstacle.style.position = "absolute";
-    obstacle.style.bottom = "50px"; // Align with ground
-  } else if (blockType === 2) {
-    // Spike
-    obstacle.className = "spike";
-    // @ts-ignore
-    obstacle.type = "spike";
-  } else if (blockType === 3) {
-    // Teleporter
-    obstacle.className = "teleporter";
-    // @ts-ignore
-    obstacle.type = "teleporter";
-    obstacle.style.width = "30px";
-    obstacle.style.height = "60px";
-    obstacle.style.background = "linear-gradient(to right, #ff00ff, #8c00ff)";
-    obstacle.style.borderRadius = "15px";
-    obstacle.style.animation = "glow 1s infinite alternate";
-
-    // Extract rotation if it exists
-    // @ts-ignore
-    if (typeof type === "string" && type.includes("@")) {
-      // @ts-ignore
-      const rotation = type.split("@")[1];
-      obstacle.setAttribute("data-rotation", rotation);
-    }
-  } else if (blockType === 1) {
-    // Platform
-    obstacle.className = "platform";
-    // @ts-ignore
-    obstacle.type = "platform";
-    obstacle.style.width = "45px";
-    obstacle.style.height = "45px";
-  }
-
-  // Apply color if specified
-  if (blockColor) {
-    if (blockType === 2) {
-      // For spikes
-      obstacle.style.borderBottomColor = blockColor;
-    } else {
-      obstacle.style.backgroundColor = blockColor;
-    }
-  }
-
-  // Apply rotation if specified
-  if (blockRotation !== 0) {
-    obstacle.style.transform = `rotate(${blockRotation}deg)`;
-  }
-
-  // Position the obstacle
-  obstacle.style.left = gameContainer.offsetWidth + "px";
-
-  // Calculate vertical position (inverted row calculation)
-  const baseHeight = 50;
-  const rowSpacing = 45; // Match platform block height
-  const state = GameState.getState();
-  const levelHeight = state.levelMatrix ? state.levelMatrix.length : 10; // fallback
-  const invertedRow = levelHeight - 1 - row;
-  obstacle.style.bottom = baseHeight + invertedRow * rowSpacing + "px";
-
-  DOMManager.getElement("#cameraContainer").appendChild(obstacle);
-  // @ts-ignore
-  obstacles.push({ element: obstacle, type: obstacle.type });
-}
-
-/**
- * Handles collision detection between player and obstacles
- * @param {HTMLElement} player - The player element
- * @param {HTMLElement} obstacle - The obstacle element to check collision with
- * @returns {boolean} - True if collision detected, false otherwise
- */
-function checkCollision(player, obstacle) {
-  if (obstacle.classList.contains("empty-block")) return false;
-
-  // Get raw positions without camera influence
-  const playerBottom = parseInt(player.style.bottom);
-  const playerLeft = parseInt(player.style.left);
-  const obstacleBottom = parseInt(obstacle.style.bottom);
-  const obstacleLeft = parseInt(obstacle.style.left);
-  const tolerance = 5; // Small overlap allowance for smoother collision
-  const playerSize = 30; // Player width/height
-  // @ts-ignore
-  const obstacleSize = obstacle.type === "platform" ? 45 : 30;
-
-  // Get obstacle rotation
-  let rotation = 0;
-  const transform = obstacle.style.transform;
-  if (transform) {
-    const match = transform.match(/rotate\((\d+)deg\)/);
-    if (match) {
-      rotation = parseInt(match[1]);
-    }
-  }
-
-  // Adjust collision box based on rotation for spikes
-  let adjustedObstacleBottom = obstacleBottom;
-  let adjustedObstacleLeft = obstacleLeft;
-  // @ts-ignore
-  if (obstacle.type === "spike") {
-    switch (rotation) {
-      case 90: // Pointing left
-        adjustedObstacleLeft += obstacleSize / 2;
-        break;
-      case 180: // Pointing up
-        adjustedObstacleBottom += obstacleSize / 2;
-        break;
-      case 270: // Pointing right
-        adjustedObstacleLeft -= obstacleSize / 2;
-        break;
-      default: // Pointing down or no rotation
-        adjustedObstacleBottom -= obstacleSize / 2;
-    }
-  }
-
-  // Check for overlap in both x and y directions
-  return !(
-    playerLeft + playerSize - tolerance < adjustedObstacleLeft ||
-    playerLeft + tolerance > adjustedObstacleLeft + obstacleSize ||
-    playerBottom + playerSize - tolerance < adjustedObstacleBottom ||
-    playerBottom + tolerance > adjustedObstacleBottom + obstacleSize
-  );
-}
-
-/**
- * Handles specific collision logic for platforms
- * Includes landing detection and side collision
- */
-// @ts-ignore
-function handlePlatformCollision(playerRect, platform) {
-  // Get raw positions without camera influence
-  const playerBottom = parseInt(player.style.bottom);
-  const platformBottom = parseInt(platform.style.bottom);
-  const playerLeft = parseInt(player.style.left);
-  const platformLeft = parseInt(platform.style.left);
-
-  // Calculate overlaps
-  const horizontalOverlap =
-    Math.min(playerLeft + 30, platformLeft + 40) -
-    Math.max(playerLeft, platformLeft);
-  const verticalOverlap =
-    Math.min(playerBottom + 30, platformBottom + 40) -
-    Math.max(playerBottom, platformBottom);
-
-  const playerWidth = 30;
-  const horizontalCollision = horizontalOverlap / playerWidth;
-
-  // First, check for side collision - this takes priority
-  // If we have any meaningful horizontal collision and we're not jumping, it's death
-  const state = GameState.getState();
-  if (
-    horizontalCollision > 0.2 && // Significant horizontal collision
-    verticalOverlap > 5 && // Some vertical overlap
-    !state.isJumping && // Not in a jump
-    Math.abs(playerBottom - (platformBottom + 40)) > 15
-  ) {
-    // Not very close to top
-    return "death";
-  }
-
-  // Only then check for safe landing
-  if (
-    state.playerVelocity > 0 && // Moving down
-    Math.abs(playerBottom - (platformBottom + 40)) < 10 && // Very close to top
-    horizontalCollision > 0.3
-  ) {
-    // Enough horizontal overlap for landing
-
-    // Safe landing
-    GameState.setState({
-      isOnPlatform: true,
-      isJumping: false,
-      doubleJumpAvailable: true,
-      playerVelocity: 0,
-    });
-    player.style.bottom = platformBottom + 45 + "px";
-    return "safe";
-  }
-
-  return "none";
 }
 
 /**
@@ -612,15 +231,6 @@ function levelComplete() {
   cleanupParticles();
   cancelAnimationFrame(animationFrameId);
 }
-
-// Add camera-related variables
-let cameraOffsetY = 0;
-const CAMERA_FOLLOW_THRESHOLD = 50; // Reduced from 100 to make camera more responsive
-const MAX_CAMERA_SPEED = 20; // Increased from 15 to make camera movement smoother
-
-// Make cameraOffsetY globally accessible
-// @ts-ignore
-window.cameraOffsetY = cameraOffsetY;
 
 /**
  * Main game loop that updates all game elements
@@ -988,12 +598,7 @@ async function restartGame() {
   DOMManager.getElement("#cameraContainer").style.transform = "translateY(0)";
 
   // Clear obstacles and particles
-  obstacles.forEach((obstacle) => {
-    if (obstacle.element && obstacle.element.parentNode) {
-      obstacle.element.remove();
-    }
-  });
-  obstacles = [];
+  clearObstacles(obstacles);
 
   cleanupParticles();
 
@@ -1205,24 +810,6 @@ function calculateTotalBlocks() {
     console.error("No finish line found in level matrix!");
     totalBlocks = state.levelMatrix[0].length * state.levelMatrix.length; // Fallback calculation
   }
-}
-
-/**
- * Gradually reduces background music volume until silent
- * Used during level completion and game over
- */
-// @ts-ignore
-async function fadeOutMusic() {
-  const state = GameState.getState();
-  const currentMusic = state.isPracticeMode
-    ? AudioManager.practiceMusic
-    : AudioManager.backgroundMusic;
-  while (currentMusic.volume > 0.02) {
-    currentMusic.volume -= 0.02; // Reduce volume by 2%
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  await AudioManager.pause(currentMusic);
-  currentMusic.volume = SettingsManager.current.volume / 100; // Reset to user's volume setting
 }
 
 /**
@@ -1512,195 +1099,10 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Smooth background transition logic using the color codes
-const colorSteps = [
-  COLOR_MAP["0"],
-  COLOR_MAP["-1"],
-  COLOR_MAP["-2"],
-  COLOR_MAP["-3"],
-  COLOR_MAP["-4"],
-  COLOR_MAP["-5"],
-  COLOR_MAP["-6"],
-  COLOR_MAP["-7"],
-  COLOR_MAP["-8"],
-  COLOR_MAP["-9"],
-];
-// @ts-ignore
-let colorIndex = 0;
-// @ts-ignore
-let transitionFactor = 0;
-const totalTransitionTime = 10; // Total time for all transitions
-
-// Calculate transition speed and duration
-const numberOfTransitions = colorSteps.length - 1;
-const transitionDuration = totalTransitionTime / numberOfTransitions;
-// @ts-ignore
-const transitionSpeed = 1 / (transitionDuration * 60); // Assuming 60 frames per second
-
-// ===== Color =====
-// @ts-ignore
-const COLOR_TRANSITION = {
-  DURATION: 2, // Duration of each color transition in seconds
-  SPEED: 0.0052, // Speed of transition (smaller = slower)
-};
-
-// Update the updateBackgroundColor function
-function updateBackgroundColor() {
-  // Get current state
-  const state = GameState.getState();
-
-  // Basic validation
-  if (
-    !state.levelMatrix ||
-    !state.levelMatrix.length ||
-    !state.levelColorRow ||
-    !state.levelColorRow.length
-  ) {
-    // Early return if level data isn't loaded yet
-    return;
-  }
-
-  try {
-    // Account for initial empty space using CONSTANTS
-    const delayColumns = Math.floor(
-      CONSTANTS.INITIAL_SPACE / CONSTANTS.COLUMN_WIDTH
-    );
-    const adjustedColumn = Math.max(0, state.currentColumn - delayColumns);
-
-    // Get current and next codes from the stored color row
-    const currentRawCode = state.levelColorRow[adjustedColumn];
-    const nextRawCode =
-      state.levelColorRow[
-      Math.min(adjustedColumn + 1, state.levelColorRow.length - 1)
-      ];
-
-    // Don't force negative numbers, allow 0 for black
-    const currentCode = `${extractColorCode(currentRawCode) || 0}`;
-    const nextCode = `${extractColorCode(nextRawCode) || 0}`;
-
-    // Get colors from color map
-    const currentColor = COLOR_MAP[currentCode] || "#000000"; // Default to black
-    const nextColor = COLOR_MAP[nextCode] || "#000000";
-
-    if (!currentColor || !nextColor) {
-      console.error("Invalid color codes:", currentCode, nextCode);
-      return;
-    }
-
-    // Create darker versions
-    const currentDarkerColor = makeColorDarker(currentColor);
-    const nextDarkerColor = makeColorDarker(nextColor);
-
-    const gameContainer = document.getElementById("gameContainer");
-    if (!gameContainer) return;
-
-    // If colors are the same, no need to interpolate
-    if (currentCode === nextCode) {
-      gameContainer.style.backgroundColor = currentDarkerColor;
-      gameContainer.style.transition = "none";
-      return;
-    }
-
-    // Calculate transition
-    const rowSpacing = 45; // Match platform block width
-    const playerElement = document.getElementById("player");
-    const playerX = playerElement
-      ? parseInt(playerElement.style.left) || 100
-      : 100;
-    const factor = (playerX % rowSpacing) / rowSpacing;
-    const newColor = interpolateColor(
-      currentDarkerColor,
-      nextDarkerColor,
-      factor
-    );
-
-    // Apply the new color if valid
-    if (newColor && newColor.length === 7) {
-      gameContainer.style.backgroundColor = newColor;
-      gameContainer.style.transition = "none";
-    }
-  } catch (error) {
-    console.error("[Color Transition] Error:", error);
-  }
-}
-
-// Update the interpolateColor function for smoother transitions
-function interpolateColor(color1, color2, factor) {
-  if (
-    !color1 ||
-    !color2 ||
-    typeof color1 !== "string" ||
-    typeof color2 !== "string"
-  ) {
-    return COLOR_MAP["0"];
-  }
-  // Ensure factor is between 0 and 1
-  factor = Math.max(0, Math.min(1, factor));
-
-  // Parse colors
-  const r1 = parseInt(color1.slice(1, 3), 16);
-  const g1 = parseInt(color1.slice(3, 5), 16);
-  const b1 = parseInt(color1.slice(5, 7), 16);
-
-  const r2 = parseInt(color2.slice(1, 3), 16);
-  const g2 = parseInt(color2.slice(3, 5), 16);
-  const b2 = parseInt(color2.slice(5, 7), 16);
-
-  // Interpolate using cubic easing for smoother transitions
-  const ease = factor * factor * (3 - 2 * factor);
-
-  // Calculate new color values
-  const r = Math.round(r1 + (r2 - r1) * ease);
-  const g = Math.round(g1 + (g2 - g1) * ease);
-  const b = Math.round(b1 + (b2 - b1) * ease);
-
-  // Convert back to hex
-  return `#${r.toString(16).padStart(2, "0")}${g
-    .toString(16)
-    .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-}
-
-// Make colors darker for background
-function makeColorDarker(color) {
-  if (!color || typeof color !== "string" || !color.startsWith("#")) {
-    return COLOR_MAP["0"]; // Return default color if input is invalid
-  }
-
-  try {
-    // Convert hex to RGB
-    const r = parseInt(color.slice(1, 3), 16) || 0;
-    const g = parseInt(color.slice(3, 5), 16) || 0;
-    const b = parseInt(color.slice(5, 7), 16) || 0;
-
-    // Make each component 40% darker
-    const darkerR = Math.max(0, Math.floor(r * 0.6));
-    const darkerG = Math.max(0, Math.floor(g * 0.6));
-    const darkerB = Math.max(0, Math.floor(b * 0.6));
-
-    // Convert back to hex
-    return `#${darkerR.toString(16).padStart(2, "0")}${darkerG
-      .toString(16)
-      .padStart(2, "0")}${darkerB.toString(16).padStart(2, "0")}`;
-  } catch (error) {
-    console.error("Error in makeColorDarker:", error);
-    return COLOR_MAP["0"]; // Return default color on error
-  }
-}
-
-function extractColorCode(code) {
-  if (typeof code === "string") {
-    const props = code.split("/");
-    const colorProp = props.find((p) => p.startsWith("-"));
-    return colorProp ? parseInt(colorProp) : -1;
-  }
-  return code;
-}
-
 /**
- * Enhanced level data validation
+ * Level data validation
  * @throws {Error} If validation fails
  */
-// @ts-ignore
 function validateLevelData(matrix) {
   if (!matrix || !Array.isArray(matrix)) {
     throw new Error("Invalid level data: matrix must be an array");
@@ -1721,7 +1123,7 @@ function validateLevelData(matrix) {
     if (typeof code === "string") {
       const props = code.split("/");
       // First property is always the type
-      // @ts-ignore
+      
       const blockType = parseInt(props[0]);
 
       // Process other properties
@@ -1729,11 +1131,11 @@ function validateLevelData(matrix) {
         const prop = props[i];
         if (prop.startsWith("-")) {
           // Color property (negative number)
-          // @ts-ignore
+          
           const blockColor = COLOR_MAP[parseInt(prop)];
         } else if (prop.startsWith("@")) {
           // Rotation property
-          // @ts-ignore
+          
           const blockRotation = parseInt(prop.substring(1));
         }
       }
@@ -1794,9 +1196,8 @@ function validateLevelData(matrix) {
 }
 
 /**
- * Enhanced touch controls setup
+ * Touch controls setup
  */
-// @ts-ignore
 function initializeTouchControls() {
   const touchThreshold = 20; // pixels
   let touchStartY = 0;
@@ -1849,17 +1250,98 @@ window.addEventListener("beforeunload", () => {
 
 console.log("All functions defined and listeners added");
 
-/**
- * Cleans up all particle effects
- * Called during game restart and level completion
- */
-function cleanupParticles() {
-  // Remove all particle elements from DOM
-  particles.forEach((particle) => {
-    if (particle.element && particle.element.parentNode) {
-      particle.element.remove();
+// Initialize database when page loads
+document.addEventListener("DOMContentLoaded", async () => {
+  // Get DOM elements now that DOM is ready
+  gameContainer = DOMManager.getElement("#gameContainer");
+  player = DOMManager.getElement("#player");
+  restartBtn = DOMManager.getElement("#restartBtn");
+  progressText = DOMManager.getElement("#progressText");
+  progressFill = DOMManager.getElement("#progressFill");
+  pauseMenu = DOMManager.getElement("#pauseMenu");
+  levelCompleteElement = DOMManager.getElement("#levelComplete");
+  gameOverElement = DOMManager.getElement("#gameOver");
+  muteButton = DOMManager.getElement("#muteButton");
+
+  // Make player globally accessible for other modules
+  // @ts-ignore
+  window.player = player;
+
+  // Make progress elements globally accessible
+  // @ts-ignore
+  window.progressText = progressText;
+  // @ts-ignore
+  window.progressFill = progressFill;
+
+  // Single mute button setup
+  if (muteButton) {
+    // Remove any existing listeners by cloning
+    const newMuteButton = muteButton.cloneNode(true);
+    muteButton.parentNode.replaceChild(newMuteButton, muteButton);
+
+    // Add single event listener
+    newMuteButton.addEventListener("click", function () {
+      toggleGameState("mute");
+      this.textContent = AudioManager.isMuted ? "🔇" : "🔊";
+    });
+
+    // Set initial icon
+    newMuteButton.textContent = AudioManager.isMuted ? "🔇" : "🔊";
+  }
+
+  try {
+    console.log("Starting ScoreManager initialization...");
+    await ScoreManager.initialize().catch((error) => {
+      console.error("ScoreManager initialization failed:", error);
+      throw error;
+    });
+    console.log("ScoreManager initialized successfully");
+
+    // Don't automatically show scoreboard on page load
+    // Only show when specifically requested (e.g., level complete)
+
+    // Then proceed with level loading
+    console.log("Starting level initialization...");
+    await DatabaseManager.initDB();
+    await LevelLoader.initializeLevelData();
+    await initializeLevel();
+    console.log("Level initialization complete");
+  } catch (error) {
+    console.error("Error during initialization:", error);
+    showLoadingError(`Failed to initialize: ${error.message}`);
+  }
+
+  // Set up event listeners now that elements are ready
+  if (restartBtn) {
+    restartBtn.addEventListener("click", restartGame);
+  }
+
+  // Resume game from pause menu
+  const resumeBtn = document.getElementById("resumeBtn");
+  if (resumeBtn) {
+    resumeBtn.addEventListener("click", () => toggleGameState("pause"));
+  }
+
+  // Restart game from pause menu
+  const restartFromPauseBtn = document.getElementById("restartFromPauseBtn");
+  if (restartFromPauseBtn) {
+    restartFromPauseBtn.addEventListener("click", () => {
+      pauseMenu.style.display = "none";
+      GameState.setState({ isPaused: false });
+      location.reload();
+    });
+  }
+
+  // Toggle pause with pause button
+  const pauseButton = document.getElementById("pauseButton");
+  if (pauseButton) {
+    pauseButton.addEventListener("click", () => toggleGameState("pause"));
+  }
+
+  // Escape key handler
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      toggleGameState("pause");
     }
   });
-  // Clear particles array
-  particles = [];
-}
+});

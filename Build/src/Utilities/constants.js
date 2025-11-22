@@ -12,6 +12,19 @@ export const COLOR_MAP = {
   "-9": "#3a86ff", // Light Blue
 };
 
+export const COLOR_STEPS = [
+  COLOR_MAP["0"],
+  COLOR_MAP["-1"],
+  COLOR_MAP["-2"],
+  COLOR_MAP["-3"],
+  COLOR_MAP["-4"],
+  COLOR_MAP["-5"],
+  COLOR_MAP["-6"],
+  COLOR_MAP["-7"],
+  COLOR_MAP["-8"],
+  COLOR_MAP["-9"],
+];
+
 export const CONSTANTS = {
   COLUMN_WIDTH: 40, // Width of each column in the level matrix
   GROUND_HEIGHT: 50, // Height of the ground from bottom of container
