@@ -1,9 +1,9 @@
 // Game Loader for Teleporter Dash
 import { GameState } from "./Utilities/gameState.js";
 import { AudioManager } from "./Utilities/audioManager.js";
-import { LevelLoader } from "./Game Engine/levelLoader.js";
-import { SettingsManager } from "./Game Engine/settingsManager.js";
-import { ScoreManager } from "./Game Engine/scoreManager.js";
+import { LevelLoader } from "./TDEngine/levelLoader.js";
+import { SettingsManager } from "./TDEngine/settingsManager.js";
+import { ScoreManager } from "./TDEngine/scoreManager.js";
 import { DatabaseManager } from "./Utilities/databaseManager.js";
 import { COLOR_MAP, CONSTANTS } from "./Utilities/constants.js";
 import { DOMManager } from "./Utilities/domManager.js";

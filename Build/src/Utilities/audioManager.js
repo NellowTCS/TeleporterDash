@@ -1,6 +1,6 @@
 // Audio Manager for Teleporter Dash
 import { GameState } from './gameState.js';
-import { SettingsManager } from '../Game Engine/settingsManager.js';
+import { SettingsManager } from '../TDEngine/settingsManager.js';
 import { DOMManager } from './domManager.js';
 
 export const AudioManager = {

@@ -1,7 +1,7 @@
 // Level Editor: Main Entry Point
 // Simplified main file that initializes the level editor controller
 
-import { LevelEditorController } from "./Level Editor/levelEditorController.js";
+import { LevelEditorController } from "./TDEditor/levelEditorController.js";
 
 // Initialize the level editor when the DOM is loaded
 let editorController = null;
