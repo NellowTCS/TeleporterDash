@@ -21,9 +21,9 @@ export class TestManager {
       console.error("Error saving test level:", error);
       const errorHandler = new ErrorHandler();
       errorHandler.showError(
-        'Test Failed', 
+        "Test Failed",
         `Could not prepare level for testing: ${error.message}`,
-        'error'
+        "error",
       );
     }
   }

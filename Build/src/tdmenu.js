@@ -1,8 +1,11 @@
 // Menu Navigation System
-import { DatabaseManager } from './Utilities/databaseManager.js';
-import { DOMManager } from './Utilities/domManager.js';
-import './Utilities/levelPreview.js';
-import { showError, showLoadingError } from './Utilities/notificationManager.js';
+import { DatabaseManager } from "./Utilities/databaseManager.js";
+import { DOMManager } from "./Utilities/domManager.js";
+import "./Utilities/levelPreview.js";
+import {
+  showError,
+  showLoadingError,
+} from "./Utilities/notificationManager.js";
 
 async function transitionMenu(fromMenu, toMenu) {
   return new Promise((resolve) => {
@@ -66,17 +69,17 @@ function startGame() {
     // @ts-ignore
     const level = window.builtInLevels[currentLevelIndex];
     window.location.href = `gameloader.html?level=${level.number}`;
-  // @ts-ignore
+    // @ts-ignore
   } else if (currentLevelType === "online" && window.onlineLevels) {
     // @ts-ignore
     const level = window.onlineLevels[currentLevelIndex];
     window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
-      level.filename
+      level.filename,
     )}`;
   }
   transitionMenu(
     document.querySelector(".menu"),
-    document.querySelector(".level-selector")
+    document.querySelector(".level-selector"),
   );
 }
 
@@ -86,7 +89,7 @@ function openLevelEditor() {
 
 function showCredits() {
   alert(
-    "Credits to Etheblix for the Menu Music, Tranquill Teleportation!\nCredits to RobTopGames for the original game and music! \nCredits to ForeverBound, DJVI, and Step for the amazing original Geometry Dash music!"
+    "Credits to Etheblix for the Menu Music, Tranquill Teleportation!\nCredits to RobTopGames for the original game and music! \nCredits to ForeverBound, DJVI, and Step for the amazing original Geometry Dash music!",
   );
 }
 
@@ -131,18 +134,18 @@ async function loadBuiltInLevelRegistry() {
   loadingStarted = true;
   currentLevelType = "built-in";
   const levelSelector = document.querySelector(
-    ".built-in-levels .level-selector"
+    ".built-in-levels .level-selector",
   );
-  
+
   // Clone template and populate
-  const template = document.querySelector('#built-in-level-template');
+  const template = document.querySelector("#built-in-level-template");
   if (!template) {
-    console.error('Template not found: #built-in-level-template');
+    console.error("Template not found: #built-in-level-template");
     return;
   }
   // @ts-ignore
   const content = template.content.cloneNode(true);
-  levelSelector.innerHTML = '';
+  levelSelector.innerHTML = "";
   levelSelector.appendChild(content);
 
   const levels = await scanForLevels();
@@ -157,25 +160,25 @@ async function loadOnlineLevelRegistry() {
   loadingStarted = true;
   currentLevelType = "online";
   const levelSelector = document.querySelector(
-    ".online-levels .level-selector"
+    ".online-levels .level-selector",
   );
-  
+
   // Clone template and populate
-  const template = document.querySelector('#online-level-template');
+  const template = document.querySelector("#online-level-template");
   if (!template) {
-    console.error('Template not found: #online-level-template');
+    console.error("Template not found: #online-level-template");
     return;
   }
   // @ts-ignore
   const content = template.content.cloneNode(true);
-  levelSelector.innerHTML = '';
+  levelSelector.innerHTML = "";
   levelSelector.appendChild(content);
 
   try {
     const levels = await DatabaseManager.getDownloadedLevels();
     if (levels.length === 0) {
       const levelDisplay = document.querySelector(
-        ".online-levels .level-display"
+        ".online-levels .level-display",
       );
       levelDisplay.innerHTML =
         '<p class="no-levels">No downloaded levels found.<br>Visit the Level Store to download levels!</p>';
@@ -189,7 +192,7 @@ async function loadOnlineLevelRegistry() {
   } catch (error) {
     console.error("Error loading downloaded levels:", error);
     const levelDisplay = document.querySelector(
-      ".online-levels .level-display"
+      ".online-levels .level-display",
     );
     levelDisplay.innerHTML =
       '<p class="error-message">Error loading levels.<br>Please try again later.</p>';
@@ -209,37 +212,39 @@ async function updateLevelDisplay() {
   const container = document.querySelector(
     currentLevelType === "built-in"
       ? ".built-in-levels .level-selector"
-      : ".online-levels .level-selector"
+      : ".online-levels .level-selector",
   );
   if (!container) return;
 
   const levelDisplay = container.querySelector(".level-display");
   if (!levelDisplay) {
     // Clone the level-display template
-    const template = document.querySelector('#level-display-template');
+    const template = document.querySelector("#level-display-template");
     if (!template) {
-      console.error('Template not found: #level-display-template');
+      console.error("Template not found: #level-display-template");
       return;
     }
     // @ts-ignore
     const content = template.content.cloneNode(true);
-    container.innerHTML = '';
+    container.innerHTML = "";
     container.appendChild(content);
-    
+
     // Update the title based on level type
-    const title = container.querySelector('h1');
+    const title = container.querySelector("h1");
     if (title) {
-      title.textContent = currentLevelType === "built-in" ? "Select Level" : "Downloaded Levels";
+      title.textContent =
+        currentLevelType === "built-in" ? "Select Level" : "Downloaded Levels";
     }
-    
+
     // Update back button onclick
-    const backButton = container.querySelector('.back-button');
+    const backButton = container.querySelector(".back-button");
     if (backButton) {
       // @ts-ignore
-      backButton.onclick = () => handleMenuTransition(
-        currentLevelType === "built-in" ? "built-in-levels" : "online-levels", 
-        'menu'
-      );
+      backButton.onclick = () =>
+        handleMenuTransition(
+          currentLevelType === "built-in" ? "built-in-levels" : "online-levels",
+          "menu",
+        );
     }
   }
 
@@ -266,7 +271,10 @@ async function updateLevelDisplay() {
         throw new Error("No online levels data available");
       }
       // @ts-ignore
-      if (currentLevelIndex < 0 || currentLevelIndex >= window.onlineLevels.length) {
+      if (
+        currentLevelIndex < 0 ||
+        currentLevelIndex >= window.onlineLevels.length
+      ) {
         throw new Error(`Invalid level index: ${currentLevelIndex}`);
       }
       // @ts-ignore
@@ -315,7 +323,7 @@ async function updateLevelDisplay() {
     console.error("Error updating level display:", error);
     showLoadingError(
       "Failed to load level data",
-      currentLevelType === "built-in"
+      currentLevelType === "built-in",
     );
   }
 }
@@ -335,7 +343,10 @@ function updateMenuScale() {
     const menuHeightScale = ((height / zoomLevel) * 0.7) / baseMenuHeight;
     let menuScale = Math.min(menuWidthScale, menuHeightScale);
     menuScale = Math.max(0.6, Math.min(menuScale, 1.2));
-    document.documentElement.style.setProperty("--menu-scale", menuScale.toString());
+    document.documentElement.style.setProperty(
+      "--menu-scale",
+      menuScale.toString(),
+    );
   }
 
   // Simplified - no complex level selector scaling needed
@@ -347,7 +358,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.fonts.ready.then(() => {
     setTimeout(updateMenuScale, 100);
   });
-  
+
   // Audio Setup
   menuMusic = DOMManager.getElement("#menuMusic");
   if (menuMusic) {
@@ -369,7 +380,7 @@ window.addEventListener("resize", () => {
 function clearData() {
   if (
     confirm(
-      "Are you sure you want to clear all data? This action cannot be undone."
+      "Are you sure you want to clear all data? This action cannot be undone.",
     )
   ) {
     localStorage.clear();
@@ -385,7 +396,7 @@ function clearData() {
       });
     if (
       confirm(
-        "Do you want to leave the page? (Clicking No/Cancel will reload the page)"
+        "Do you want to leave the page? (Clicking No/Cancel will reload the page)",
       )
     ) {
       window.location.href = "https://github.com/NellowTCS/TeleporterDash/";

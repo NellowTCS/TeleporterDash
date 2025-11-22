@@ -1,11 +1,14 @@
 // Level Loader for Teleporter Dash
-import { GameState } from '../Utilities/gameState.js';
-import { COLOR_MAP, CONSTANTS } from '../Utilities/constants.js';
-import { AudioManager } from '../Utilities/audioManager.js';
-import { DatabaseManager } from '../Utilities/databaseManager.js';
-import { SettingsManager } from './settingsManager.js';
-import { showLoadingError, showError } from '../Utilities/notificationManager.js';
-import { DOMManager } from '../Utilities/domManager.js';
+import { GameState } from "../Utilities/gameState.js";
+import { COLOR_MAP, CONSTANTS } from "../Utilities/constants.js";
+import { AudioManager } from "../Utilities/audioManager.js";
+import { DatabaseManager } from "../Utilities/databaseManager.js";
+import { SettingsManager } from "./settingsManager.js";
+import {
+  showLoadingError,
+  showError,
+} from "../Utilities/notificationManager.js";
+import { DOMManager } from "../Utilities/domManager.js";
 
 // Global variables needed for level loading
 let levelColorSteps = [];
@@ -16,7 +19,6 @@ let levelMusic = null;
 const player = DOMManager.getElement("#player");
 const progressFill = DOMManager.getElement("#progressFill");
 const progressText = DOMManager.getElement("#progressText");
-
 
 export const LevelLoader = {
   // // "Initialize" Variables
@@ -183,8 +185,8 @@ export const LevelLoader = {
 
     // For built-in levels, first row is already the color row
     GameState.setState({
-        levelMatrix: data.matrix.slice(1),
-        levelColorRow: data.matrix[0]
+      levelMatrix: data.matrix.slice(1),
+      levelColorRow: data.matrix[0],
     });
 
     // Process colors
@@ -234,13 +236,20 @@ export const LevelLoader = {
 
     // Set other level data
     GameState.setState({
-        levelTitle: data.title || "Untitled Level",
-        levelAuthor: data.author || "Unknown Author",
-        levelDifficulty: data.difficulty || "Normal"
+      levelTitle: data.title || "Untitled Level",
+      levelAuthor: data.author || "Unknown Author",
+      levelDifficulty: data.difficulty || "Normal",
     });
 
     // Handle music data
-    console.log("Music data - musicValue:", data.musicValue, "music:", data.music, "musicData:", !!data.musicData);
+    console.log(
+      "Music data - musicValue:",
+      data.musicValue,
+      "music:",
+      data.music,
+      "musicData:",
+      !!data.musicData,
+    );
     if (data.musicValue === "custom" && data.musicData) {
       console.log("Using custom music");
       const blob = new Blob([data.musicData.data], {
@@ -251,22 +260,28 @@ export const LevelLoader = {
       console.log("LevelMusic: ", musicUrl);
     } else if (GameState.getState().isPracticeMode) {
       console.log("Using practice mode music");
-      GameState.setState({ levelMusic: "./Sound/Basic Soundeffects/practicetd.ogg" });
+      GameState.setState({
+        levelMusic: "./Sound/Basic Soundeffects/practicetd.ogg",
+      });
       console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (
       data.musicValue &&
       data.musicValue.startsWith("./Sound/Level Soundtracks/")
     ) {
-      console.log("Using musicValue that starts with ./Sound/Level Soundtracks/");
+      console.log(
+        "Using musicValue that starts with ./Sound/Level Soundtracks/",
+      );
       GameState.setState({ levelMusic: data.musicValue });
       console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (data.musicValue) {
       console.log("Using musicValue with public prefix");
       // If musicValue is already a full path, use it directly
-      if (data.musicValue.includes('/')) {
+      if (data.musicValue.includes("/")) {
         GameState.setState({ levelMusic: data.musicValue });
       } else {
-        GameState.setState({ levelMusic: `./Sound/Level Soundtracks/${data.musicValue}` });
+        GameState.setState({
+          levelMusic: `./Sound/Level Soundtracks/${data.musicValue}`,
+        });
       }
       console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else if (data.musicData) {
@@ -283,16 +298,20 @@ export const LevelLoader = {
     } else if (data.music) {
       console.log("Using music with path check");
       // If music is already a full path, use it directly
-      if (data.music.includes('/')) {
+      if (data.music.includes("/")) {
         GameState.setState({ levelMusic: data.music });
       } else {
         // Otherwise, construct the path
-        GameState.setState({ levelMusic: `../Sound/Level Soundtracks/${data.music}` });
+        GameState.setState({
+          levelMusic: `../Sound/Level Soundtracks/${data.music}`,
+        });
       }
       console.log("LevelMusic: ", GameState.getState().levelMusic);
     } else {
       console.log("Using fallback music");
-      GameState.setState({ levelMusic: "./Sound/Level Soundtracks/level1.ogg" });
+      GameState.setState({
+        levelMusic: "./Sound/Level Soundtracks/level1.ogg",
+      });
       console.log("LevelMusic: ", GameState.getState().levelMusic);
     }
 
@@ -312,17 +331,17 @@ export const LevelLoader = {
 
     // Reset game state
     GameState.setState({
-        gameSpeed: 4,
-        currentColumn: 0,
-        playerVelocity: 0,
-        rotation: 0,
-        isOnPlatform: false,
-        doubleJumpAvailable: true,
-        passedBlocks: 0,
-        isLevelStarted: false,
-        isGameOver: false,
-        isPaused: false,
-        isLevelComplete: false
+      gameSpeed: 4,
+      currentColumn: 0,
+      playerVelocity: 0,
+      rotation: 0,
+      isOnPlatform: false,
+      doubleJumpAvailable: true,
+      passedBlocks: 0,
+      isLevelStarted: false,
+      isGameOver: false,
+      isPaused: false,
+      isLevelComplete: false,
     });
 
     // Reset progress bar
@@ -350,11 +369,16 @@ export const LevelLoader = {
 
     // Switch to practice mode music
     const state = GameState.getState();
-    if (state.isLevelStarted && !state.isPaused && !state.isGameOver && !state.isLevelComplete) {
+    if (
+      state.isLevelStarted &&
+      !state.isPaused &&
+      !state.isGameOver &&
+      !state.isLevelComplete
+    ) {
       try {
         AudioManager.switchTracks(
           AudioManager.practiceMusic,
-          AudioManager.backgroundMusic
+          AudioManager.backgroundMusic,
         );
       } catch (error) {
         console.error("Error switching to practice mode music:", error);

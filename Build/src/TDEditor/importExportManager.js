@@ -18,17 +18,21 @@ export class ImportExportManager {
   // ===== Export Operations =====
   getNextLevelId() {
     const id = GameState.current.editor.nextLevelId++;
-    localStorage.setItem("nextLevelId", GameState.current.editor.nextLevelId.toString());
+    localStorage.setItem(
+      "nextLevelId",
+      GameState.current.editor.nextLevelId.toString(),
+    );
     return id;
   }
 
   async exportLevel() {
     const levelName = DOMManager.getValue("#levelName") || "Untitled Level";
-    const authorName = DOMManager.getValue("#authorName") || "Unknown Author";  
+    const authorName = DOMManager.getValue("#authorName") || "Unknown Author";
     const difficulty = DOMManager.getValue("#difficulty") || "Normal";
     const musicSelect = DOMManager.getElement("#musicSelect");
     if (!AudioManager) {
-      AudioManager = (await import("../Utilities/audioManager.js")).AudioManager;
+      AudioManager = (await import("../Utilities/audioManager.js"))
+        .AudioManager;
     }
     const musicPath = AudioManager.getMusicPath(musicSelect.value, true);
     const levelId = this.getNextLevelId();
@@ -51,13 +55,16 @@ colorTransitionDelay: 0.1
     zip.file(`Levels/level${levelId}.js`, jsContent);
 
     // If using custom music, add it to the zip
-    if (musicSelect.value === "custom" && GameState.current.editor.customMusicFile) {
+    if (
+      musicSelect.value === "custom" &&
+      GameState.current.editor.customMusicFile
+    ) {
       const blob = new Blob([GameState.current.editor.customMusicFile.data], {
         type: GameState.current.editor.customMusicFile.type,
       });
       zip.file(
         `Sound/Level Soundtracks/${GameState.current.editor.customMusicFile.name}`,
-        blob
+        blob,
       );
     }
 
@@ -98,7 +105,7 @@ colorTransitionDelay: 0.1
       // After successful export, save the current state
       GameState.setEditorState({
         lastExportedMatrix: JSON.parse(
-          JSON.stringify(GameState.current.editor.levelMatrix)
+          JSON.stringify(GameState.current.editor.levelMatrix),
         ),
         hasUnsavedChanges: false,
       });
@@ -108,16 +115,16 @@ colorTransitionDelay: 0.1
       console.error("Export failed:", error);
       const errorHandler = new ErrorHandler();
       errorHandler.showError(
-        'Export Failed',
+        "Export Failed",
         `Could not export level: ${error.message}`,
-        'error'
+        "error",
       );
     }
   }
 
   showExportSuccess() {
     alert(
-      "Your level will be downloaded for backup and then you will be redirected to a form to submit your level in a few seconds. Note: If you get the error 'Address unavailable:', this is just an GitHub server issue and you can click Upload again."
+      "Your level will be downloaded for backup and then you will be redirected to a form to submit your level in a few seconds. Note: If you get the error 'Address unavailable:', this is just an GitHub server issue and you can click Upload again.",
     );
     setTimeout(() => {
       window.location.href =
@@ -145,9 +152,9 @@ colorTransitionDelay: 0.1
         console.error("Import failed:", error);
         const errorHandler = new ErrorHandler();
         errorHandler.showError(
-          'Import Failed',
+          "Import Failed",
           `Could not import level: ${error.message}`,
-          'error'
+          "error",
         );
       }
     };
@@ -202,7 +209,10 @@ colorTransitionDelay: 0.1
     });
 
     // Update music select dropdown
-    this.updateCustomMusicOption(musicSelect, GameState.current.editor.customMusicFile.name);
+    this.updateCustomMusicOption(
+      musicSelect,
+      GameState.current.editor.customMusicFile.name,
+    );
     musicSelect.value = "custom";
 
     // Update music preview
@@ -216,7 +226,9 @@ colorTransitionDelay: 0.1
   async handleRegularFileImport(file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
-      await this.processImportedContent(/** @type {string} */ (e.target.result));
+      await this.processImportedContent(
+        /** @type {string} */ (e.target.result),
+      );
     };
     reader.readAsText(file);
   }
@@ -259,7 +271,9 @@ colorTransitionDelay: 0.1
   }
 
   async parseLevelDataFormat(content) {
-    const levelDataMatch = content.match(/window\.levelData\s*=\s*({[\s\S]*?});/);
+    const levelDataMatch = content.match(
+      /window\.levelData\s*=\s*({[\s\S]*?});/,
+    );
     if (!levelDataMatch) {
       throw new Error("Could not find levelData object");
     }
@@ -298,11 +312,13 @@ colorTransitionDelay: 0.1
   }
 
   async updateMusicFromImport(musicPath) {
-    if (!GameState.current.editor.customMusicFile && 
-        musicPath.startsWith("../Sound/Level Soundtracks/")) {
+    if (
+      !GameState.current.editor.customMusicFile &&
+      musicPath.startsWith("../Sound/Level Soundtracks/")
+    ) {
       const musicSelect = DOMManager.getElement("#musicSelect");
       const musicFile = musicPath.split("/").pop();
-      
+
       if (musicSelect.querySelector(`option[value="${musicFile}"]`)) {
         musicSelect.value = musicFile;
       } else {
@@ -316,9 +332,10 @@ colorTransitionDelay: 0.1
           },
         });
       }
-      
+
       if (!AudioManager) {
-        AudioManager = (await import("../Utilities/audioManager.js")).AudioManager;
+        AudioManager = (await import("../Utilities/audioManager.js"))
+          .AudioManager;
       }
       const musicPreview = DOMManager.getElement("#musicPreview");
       musicPreview.src = AudioManager.getMusicPath(musicSelect.value);

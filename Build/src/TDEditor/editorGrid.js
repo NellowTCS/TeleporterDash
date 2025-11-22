@@ -25,10 +25,10 @@ export function updateGridSize(gridWidthInput, gridHeightInput, grid) {
 
   createGrid(grid);
   updateGridVisuals();
-  
+
   // Notify EditOperations about grid size change
   if (!EditOperations) {
-    import("./editorEditOperations.js").then(module => {
+    import("./editorEditOperations.js").then((module) => {
       EditOperations = module.EditOperations;
       EditOperations.onGridSizeChanged();
     });
@@ -40,13 +40,19 @@ export function updateGridSize(gridWidthInput, gridHeightInput, grid) {
 // // Create Initial Grid and Update Dimensions
 export function createGrid(grid, onCellChangeCallback = null) {
   const perfMonitor = new PerformanceMonitor();
-  perfMonitor.startTimer('gridCreation');
-  
+  perfMonitor.startTimer("gridCreation");
+
   grid.innerHTML = "";
 
   // Set grid dimensions using current GRID_WIDTH and GRID_HEIGHT
-  grid.style.setProperty("--grid-width", GameState.current.editor.gridWidth.toString());
-  grid.style.setProperty("--grid-height", GameState.current.editor.gridHeight.toString());
+  grid.style.setProperty(
+    "--grid-width",
+    GameState.current.editor.gridWidth.toString(),
+  );
+  grid.style.setProperty(
+    "--grid-height",
+    GameState.current.editor.gridHeight.toString(),
+  );
 
   // Create the actual grid cells
   for (let row = 0; row < GameState.current.editor.gridHeight; row++) {
@@ -107,7 +113,8 @@ export function createGrid(grid, onCellChangeCallback = null) {
       });
 
       cell.addEventListener("mouseover", (e) => {
-        if (GameState.current.editor.isMouseDown) handleCellClick(e, onCellChangeCallback);
+        if (GameState.current.editor.isMouseDown)
+          handleCellClick(e, onCellChangeCallback);
       });
 
       grid.appendChild(cell);
@@ -116,22 +123,25 @@ export function createGrid(grid, onCellChangeCallback = null) {
 
   // Prevent default drag behavior on cells
   grid.addEventListener("dragstart", (e) => e.preventDefault());
-  
+
   GameState.setEditorState({ hasUnsavedChanges: true });
-  
+
   // Notify EditOperations about grid recreation
   if (!EditOperations) {
-    import("./editorEditOperations.js").then(module => {
+    import("./editorEditOperations.js").then((module) => {
       EditOperations = module.EditOperations;
       EditOperations.onGridRecreated();
     });
   } else {
     EditOperations.onGridRecreated();
   }
-  
-  const gridTime = perfMonitor.endTimer('gridCreation');
-  if (gridTime > 100) { // Log if grid creation takes more than 100ms
-    console.log(`⚠️ Grid creation took ${gridTime.toFixed(2)}ms for ${GameState.current.editor.gridWidth}x${GameState.current.editor.gridHeight} grid`);
+
+  const gridTime = perfMonitor.endTimer("gridCreation");
+  if (gridTime > 100) {
+    // Log if grid creation takes more than 100ms
+    console.log(
+      `⚠️ Grid creation took ${gridTime.toFixed(2)}ms for ${GameState.current.editor.gridWidth}x${GameState.current.editor.gridHeight} grid`,
+    );
   }
 }
 
@@ -152,7 +162,12 @@ export function handleCellClick(e, onChangeCallback = null) {
   if (currentTool === "c") {
     if (row === 0) {
       // Only allow color placement in row 0
-      updateCell(row, col, GameState.current.editor.selectedColor, onChangeCallback);
+      updateCell(
+        row,
+        col,
+        GameState.current.editor.selectedColor,
+        onChangeCallback,
+      );
       cell.style.backgroundColor =
         COLOR_MAP[GameState.current.editor.selectedColor];
       cell.style.opacity = "1";
@@ -180,7 +195,7 @@ export function handleCellClick(e, onChangeCallback = null) {
     if (
       (GameState.current.editor.currentTool === "c" ||
         GameState.current.editor.selectedBlockColor !== 0) &&
-        currentTool !== "0"
+      currentTool !== "0"
     ) {
       blockValue += `/${
         currentTool === "c"
@@ -268,7 +283,7 @@ export function updateGridVisuals() {
 // // Sanitize Matrix
 export function sanitizeMatrix(matrix) {
   return matrix.map((row) =>
-    row.map((cell) => (cell === null || cell === undefined ? 0 : cell))
+    row.map((cell) => (cell === null || cell === undefined ? 0 : cell)),
   );
 }
 

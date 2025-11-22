@@ -1,4 +1,3 @@
-
 // Rotation controls
 import { updateSelectedColorIndicator } from "./editorColorPicker.js";
 import { GameState } from "../Utilities/gameState.js";
@@ -28,8 +27,12 @@ function activateTool(button) {
 
   if (toolType === "c") {
     const sectionColorPicker = document.getElementById("colorPicker");
-    if (sectionColorPicker instanceof HTMLSelectElement && !sectionColorPicker.value) {
-      sectionColorPicker.value = GameState.current.editor.selectedColor.toString();
+    if (
+      sectionColorPicker instanceof HTMLSelectElement &&
+      !sectionColorPicker.value
+    ) {
+      sectionColorPicker.value =
+        GameState.current.editor.selectedColor.toString();
     }
     updateSelectedColorIndicator();
   }
@@ -72,7 +75,7 @@ function rotateBlock(direction) {
 
 export function initializeEditorTools() {
   initializeElements();
-  
+
   if (rotateLeft) {
     rotateLeft.addEventListener("click", () => rotateBlock(-1));
   }
@@ -100,13 +103,13 @@ export function initializeEditorTools() {
 
   // Keyboard shortcuts for quick tool swapping
   const shortcutMap = {
-    "1": "select",
-    "2": "0",
-    "3": "1",
-    "4": "2",
-    "5": "3",
-    "6": "4",
-    "7": "c",
+    1: "select",
+    2: "0",
+    3: "1",
+    4: "2",
+    5: "3",
+    6: "4",
+    7: "c",
   };
 
   document.addEventListener("keydown", (e) => {
@@ -118,7 +121,8 @@ export function initializeEditorTools() {
       (activeElement.tagName === "INPUT" ||
         activeElement.tagName === "TEXTAREA" ||
         activeElement.tagName === "SELECT" ||
-        (activeElement instanceof HTMLElement && activeElement.isContentEditable))
+        (activeElement instanceof HTMLElement &&
+          activeElement.isContentEditable))
     ) {
       return;
     }
@@ -127,7 +131,7 @@ export function initializeEditorTools() {
     if (!targetType) return;
 
     const targetButton = Array.from(tools || []).find(
-      (btn) => btn.dataset.type === targetType
+      (btn) => btn.dataset.type === targetType,
     );
 
     if (targetButton) {
@@ -149,5 +153,3 @@ export function initializeEditorTools() {
     }
   });
 }
-
-

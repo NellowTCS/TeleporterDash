@@ -9,9 +9,21 @@ import { COLOR_STEPS, CONSTANTS } from "./Utilities/constants.js";
 import { DOMManager } from "./Utilities/domManager.js";
 import { showLoadingError } from "./Utilities/notificationManager.js";
 import { updateBackgroundColor } from "./Utilities/colorManager.js";
-import { checkCollision, handlePlatformCollision, clearObstacles } from "./TDEngine/physicsEngine.js";
-import { createParticles, cleanupParticles } from "./TDEngine/particleEngine.js";
-import { setupControls, jump, handleMouseJump, handleSpaceJump } from "./TDEngine/inputManager.js";
+import {
+  checkCollision,
+  handlePlatformCollision,
+  clearObstacles,
+} from "./TDEngine/physicsEngine.js";
+import {
+  createParticles,
+  cleanupParticles,
+} from "./TDEngine/particleEngine.js";
+import {
+  setupControls,
+  jump,
+  handleMouseJump,
+  handleSpaceJump,
+} from "./TDEngine/inputManager.js";
 import { createObstacleFromMatrix } from "./TDEngine/levelParser.js";
 import { updateProgress } from "./TDEngine/progressManager.js";
 
@@ -20,17 +32,16 @@ import { updateProgress } from "./TDEngine/progressManager.js";
 // Game Container
 let gameContainer = null;
 let player = null;
-let obstacles = [];             // Array of all active obstacles
-let particles = [];             // Array of active particle effects
+let obstacles = []; // Array of all active obstacles
+let particles = []; // Array of active particle effects
 let restartBtn = null;
 let muteButton = null;
 let levelCompleteElement = null;
 let gameOverElement = null;
-let animationFrameId = null;           // ID of the current animation frame
+let animationFrameId = null; // ID of the current animation frame
 
 // @ts-ignore
 window.player = player;
-
 
 // Extract levelId from URL parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -42,23 +53,23 @@ if (urlParams.has("level")) {
 }
 
 // Physics
-const gravity = 2000;                  // Rate at which player falls (pixels/second²)
+const gravity = 2000; // Rate at which player falls (pixels/second²)
 
 // Timing
 let levelTimer = null;
 let levelTime = 0;
 let lastFrameTime = performance.now(); // Timestamp of the last frame
-let deltaTime = 0;                     // Time elapsed since last frame (in seconds)
-const TARGET_FPS = 60;                 // Target frame rate for physics calculations
-const MAX_DELTA_TIME = 1 / 30;         // Cap deltaTime to prevent large jumps
+let deltaTime = 0; // Time elapsed since last frame (in seconds)
+const TARGET_FPS = 60; // Target frame rate for physics calculations
+const MAX_DELTA_TIME = 1 / 30; // Cap deltaTime to prevent large jumps
 
 // Progress
 let progressText = null;
 let progressFill = null;
 
-// Settings 
-let autoRestartEnabled = false;        // Whether to automatically restart on death
-let isRestarting = false;              // Whether the game is currently restarting
+// Settings
+let autoRestartEnabled = false; // Whether to automatically restart on death
+let isRestarting = false; // Whether the game is currently restarting
 
 // Pause
 let isPaused = false;
@@ -66,14 +77,14 @@ let pauseMenu = null;
 
 // Camera
 let cameraOffsetY = 0;
-const CAMERA_FOLLOW_THRESHOLD = 50;    // Reduced from 100 to make camera more responsive
-const MAX_CAMERA_SPEED = 20;           // Increased from 15 to make camera movement smoother
+const CAMERA_FOLLOW_THRESHOLD = 50; // Reduced from 100 to make camera more responsive
+const MAX_CAMERA_SPEED = 20; // Increased from 15 to make camera movement smoother
 // @ts-ignore
 window.cameraOffsetY = cameraOffsetY;
 
 // Transitions
 let transitionFactor = 0;
-const totalTransitionTime = 10;        // Total time for all transitions
+const totalTransitionTime = 10; // Total time for all transitions
 const numberOfTransitions = COLOR_STEPS.length - 1;
 const transitionDuration = totalTransitionTime / numberOfTransitions;
 const transitionSpeed = 1 / (transitionDuration * 60);
@@ -119,13 +130,12 @@ export function toggleGameState(action) {
       // Resume from current position if not muted
       if (!AudioManager.isMuted) {
         AudioManager.play(currentMusic, currentMusic.currentTime).catch((e) =>
-          console.error("Error resuming music:", e)
+          console.error("Error resuming music:", e),
         );
       }
     }
   }
 }
-
 
 /**
  * Initializes level settings and UI controls
@@ -388,7 +398,7 @@ function updateGame() {
   const currentFrameTime = performance.now();
   deltaTime = Math.min(
     (currentFrameTime - lastFrameTime) / 1000,
-    MAX_DELTA_TIME
+    MAX_DELTA_TIME,
   );
   lastFrameTime = currentFrameTime;
 
@@ -425,13 +435,13 @@ function updateGame() {
     state.currentColumn < state.levelMatrix[0].length &&
     (obstacles.length === 0 ||
       gameContainer.offsetWidth -
-      obstacles[obstacles.length - 1]?.element.offsetLeft >
-      CONSTANTS.COLUMN_WIDTH)
+        obstacles[obstacles.length - 1]?.element.offsetLeft >
+        CONSTANTS.COLUMN_WIDTH)
   ) {
     for (let row = 0; row < state.levelMatrix.length; row++) {
       createObstacleFromMatrix(
         state.levelMatrix[row][state.currentColumn],
-        row
+        row,
       );
     }
     GameState.setState({
@@ -510,7 +520,7 @@ function updateGame() {
           gameOver();
         } else if (obstacle.type === "teleporter") {
           const rotation = parseInt(
-            obstacle.element.getAttribute("data-rotation") || "0"
+            obstacle.element.getAttribute("data-rotation") || "0",
           );
 
           if (rotation === 90) {
@@ -551,7 +561,7 @@ function updateGame() {
         } else if (obstacle.type === "platform") {
           const platformCollision = handlePlatformCollision(
             playerRect,
-            obstacle.element
+            obstacle.element,
           );
           if (platformCollision === "death" && !state.isPracticeMode) {
             gameOver();
@@ -597,7 +607,7 @@ function updateGame() {
   if (Math.abs(cameraDistance) > CAMERA_FOLLOW_THRESHOLD) {
     const baseCameraSpeed = Math.min(
       Math.abs(cameraDistance) * 6,
-      MAX_CAMERA_SPEED * 60
+      MAX_CAMERA_SPEED * 60,
     ); // Convert to pixels/second
     const cameraSpeed = baseCameraSpeed * deltaTime; // Apply deltaTime
     cameraOffsetY += Math.sign(cameraDistance) * cameraSpeed;
@@ -654,7 +664,7 @@ async function gameOver() {
     const nearbyObstacles = obstacles.filter(
       (o) =>
         checkCollision(player, o.element) &&
-        (o.element.style.backgroundColor || o.element.style.borderBottomColor)
+        (o.element.style.backgroundColor || o.element.style.borderBottomColor),
     );
 
     if (nearbyObstacles.length > 0) {
@@ -683,7 +693,7 @@ async function gameOver() {
       AudioManager.fadeOut(
         state.isPracticeMode
           ? AudioManager.practiceMusic
-          : AudioManager.backgroundMusic
+          : AudioManager.backgroundMusic,
       );
     }
 
@@ -809,7 +819,7 @@ function levelComplete() {
       filename,
       state.currentTime,
       state.jumpCount,
-      state.deathCount
+      state.deathCount,
     );
   } else {
     const filename = urlParams.get("level");
@@ -817,7 +827,7 @@ function levelComplete() {
       "Level " + filename,
       state.currentTime,
       state.jumpCount,
-      state.deathCount
+      state.deathCount,
     );
   }
 
@@ -833,7 +843,7 @@ function levelComplete() {
     AudioManager.fadeOut(
       state.isPracticeMode
         ? AudioManager.practiceMusic
-        : AudioManager.backgroundMusic
+        : AudioManager.backgroundMusic,
     );
   }
 

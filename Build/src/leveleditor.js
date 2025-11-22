@@ -7,21 +7,20 @@ let editorController = null;
 async function initializeLevelEditor() {
   try {
     editorController = new LevelEditorController();
-    
   } catch (error) {
     console.error("Failed to initialize Level Editor:", error);
   }
 }
 
 // Start the application
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeLevelEditor);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeLevelEditor);
 } else {
   initializeLevelEditor();
 }
 
 // Clean up on page unload
-window.addEventListener('beforeunload', () => {
+window.addEventListener("beforeunload", () => {
   if (editorController) {
     editorController.destroy();
   }

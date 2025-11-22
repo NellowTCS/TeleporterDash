@@ -1,7 +1,7 @@
 // Store levels array
-import { DatabaseManager } from './Utilities/databaseManager.js';
-import { DOMManager } from './Utilities/domManager.js';
-import './Utilities/levelPreview.js';
+import { DatabaseManager } from "./Utilities/databaseManager.js";
+import { DOMManager } from "./Utilities/domManager.js";
+import "./Utilities/levelPreview.js";
 
 const storeLevels = [];
 const GITHUB_API_BASE =
@@ -89,10 +89,10 @@ async function loadStoreLevels() {
       } catch (error) {
         console.error(`Error loading level ${file.name}:`, error);
         // Provide more detailed error information
-        console.error('Error details:', {
+        console.error("Error details:", {
           message: error.message,
           name: error.name,
-          stack: error.stack
+          stack: error.stack,
         });
         return null;
       }
@@ -114,13 +114,16 @@ async function loadStoreLevels() {
     displayLevels(storeLevels);
   } catch (error) {
     console.error("Error loading levels from GitHub:", error);
-    console.error('Error details:', {
+    console.error("Error details:", {
       message: error.message,
       name: error.name,
-      stack: error.stack
+      stack: error.stack,
     });
-    
-    const errorMessage = error.message || error.name || "Error loading levels. Please try again later.";
+
+    const errorMessage =
+      error.message ||
+      error.name ||
+      "Error loading levels. Please try again later.";
     DOMManager.getElement("#levelGrid").innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; color: red;">
                         ${errorMessage}
@@ -361,7 +364,7 @@ function getDifficultyFromMatrix(matrix) {
 // ===== Search and Filter Levels =====
 function searchLevels(query) {
   const filtered = storeLevels.filter((level) =>
-    level.title.toLowerCase().includes(query.toLowerCase())
+    level.title.toLowerCase().includes(query.toLowerCase()),
   );
   displayLevels(filtered);
 }
@@ -396,7 +399,7 @@ function filterLevels(criteria) {
       filtered.sort(
         (a, b) =>
           (difficultyOrder[a.difficulty] || 2) -
-          (difficultyOrder[b.difficulty] || 2)
+          (difficultyOrder[b.difficulty] || 2),
       );
       break;
   }
@@ -421,7 +424,7 @@ window.onload = async () => {
 };
 function startGame(levelFilename) {
   window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
-    levelFilename
+    levelFilename,
   )}`;
 }
 

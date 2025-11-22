@@ -35,7 +35,10 @@ export const DatabaseManager = {
           console.log("Scores object store created");
         }
         if (!db.objectStoreNames.contains(this.DRAFTS_STORE)) {
-          db.createObjectStore(this.DRAFTS_STORE, { keyPath: "id", autoIncrement: true });
+          db.createObjectStore(this.DRAFTS_STORE, {
+            keyPath: "id",
+            autoIncrement: true,
+          });
           console.log("Drafts object store created");
         }
         if (!db.objectStoreNames.contains(this.TEST_STORE)) {
@@ -221,7 +224,7 @@ export const DatabaseManager = {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-  }
+  },
 };
 
 // Make it global

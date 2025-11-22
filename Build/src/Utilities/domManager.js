@@ -127,7 +127,7 @@ export const DOMManager = {
 
   // Remove event listener
   removeEvent(element, event, handler) {
-    if (typeof element === 'string') {
+    if (typeof element === "string") {
       element = this.getElement(element);
     }
 
@@ -151,7 +151,7 @@ export const DOMManager = {
 
   getValue(selector) {
     const element = this.getElement(selector);
-    return element ? element.value : '';
+    return element ? element.value : "";
   },
 
   setText(selector, text) {
@@ -173,7 +173,7 @@ export const DOMManager = {
   showElement(selector) {
     const element = this.getElement(selector);
     if (element) {
-      element.style.display = 'block';
+      element.style.display = "block";
     }
     return this;
   },
@@ -181,7 +181,7 @@ export const DOMManager = {
   hideElement(selector) {
     const element = this.getElement(selector);
     if (element) {
-      element.style.display = 'none';
+      element.style.display = "none";
     }
     return this;
   },
@@ -190,9 +190,10 @@ export const DOMManager = {
     const element = this.getElement(selector);
     if (element) {
       if (show === null) {
-        element.style.display = element.style.display === 'none' ? 'block' : 'none';
+        element.style.display =
+          element.style.display === "none" ? "block" : "none";
       } else {
-        element.style.display = show ? 'block' : 'none';
+        element.style.display = show ? "block" : "none";
       }
     }
     return this;
@@ -203,5 +204,5 @@ export const DOMManager = {
     // Clear element cache
     this.elements = {};
     // Note: Event listeners would need manual cleanup if needed
-  }
+  },
 };

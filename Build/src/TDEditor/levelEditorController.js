@@ -16,14 +16,8 @@ import { PerformanceMonitor } from "./performanceMonitor.js";
 import { ErrorHandler } from "./errorHandler.js";
 
 // Import grid and other utilities
-import {
-  createGrid,
-  updateGridVisuals,
-  updateGridSize,
-} from "./editorGrid.js";
-import {
-  initializeColorPickers,
-} from "./editorColorPicker.js";
+import { createGrid, updateGridVisuals, updateGridSize } from "./editorGrid.js";
+import { initializeColorPickers } from "./editorColorPicker.js";
 
 // Import tools initialization function
 import { initializeEditorTools } from "./editorTools.js";
@@ -36,24 +30,28 @@ export class LevelEditorController {
       music: null,
       ui: null,
     };
-    
+
     this.initialize();
   }
 
   async initialize() {
     const perfMonitor = new PerformanceMonitor();
-    perfMonitor.startTimer('levelEditorInitialization');
-    
+    perfMonitor.startTimer("levelEditorInitialization");
+
     try {
       // Wait for DOM to be ready
       await this.waitForDOM();
-      
+
       // Check for essential elements before proceeding
       const essentialElements = ["#grid", "#levelName", "#exportBtn"];
-      const missingElements = essentialElements.filter(sel => !document.querySelector(sel));
-      
+      const missingElements = essentialElements.filter(
+        (sel) => !document.querySelector(sel),
+      );
+
       if (missingElements.length > 0) {
-        throw new Error(`Missing essential elements: ${missingElements.join(", ")}`);
+        throw new Error(
+          `Missing essential elements: ${missingElements.join(", ")}`,
+        );
       }
 
       // Initialize color pickers
@@ -70,7 +68,9 @@ export class LevelEditorController {
         this.managers.ui = new UIManager();
       } catch (managerError) {
         console.error("Manager initialization failed:", managerError);
-        throw new Error(`Manager initialization failed: ${managerError.message}`);
+        throw new Error(
+          `Manager initialization failed: ${managerError.message}`,
+        );
       }
 
       // Initialize the grid with change tracking
@@ -85,19 +85,21 @@ export class LevelEditorController {
       // Setup global functions for HTML onclick handlers
       this.setupGlobalFunctions();
 
-      const initTime = perfMonitor.endTimer('levelEditorInitialization', true);
-      console.log(`✅ Level Editor initialized successfully in ${initTime.toFixed(2)}ms`);
-      
+      const initTime = perfMonitor.endTimer("levelEditorInitialization", true);
+      console.log(
+        `✅ Level Editor initialized successfully in ${initTime.toFixed(2)}ms`,
+      );
+
       // Start performance monitoring
       perfMonitor.startMonitoring();
     } catch (error) {
       console.error("Failed to initialize Level Editor:", error);
       const errorHandler = new ErrorHandler();
       errorHandler.showError(
-        'Initialization Failed',
+        "Initialization Failed",
         `Could not start Level Editor: ${error.message}`,
-        'error',
-        0 // Don't auto-dismiss
+        "error",
+        0, // Don't auto-dismiss
       );
       this.showInitializationError(error);
     }
@@ -105,7 +107,7 @@ export class LevelEditorController {
 
   initializeGrid() {
     const grid = DOMManager.getElement("#grid");
-    
+
     // Hook cell changes to edit operations system
     const onCellChange = () => {
       EditOperations.onCellChange();
@@ -149,7 +151,8 @@ export class LevelEditorController {
     });
 
     // Draft-related change tracking for clearing draft indicator
-    const clearDraftIndicator = DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager);
+    const clearDraftIndicator =
+      DraftManager.clearCurrentDraftIndicatorWrapper.bind(DraftManager);
     DOMManager.addEvent("#gridContainer", "click", clearDraftIndicator);
     DOMManager.addEvent("#levelName", "input", clearDraftIndicator);
     DOMManager.addEvent("#authorName", "input", clearDraftIndicator);
@@ -175,8 +178,8 @@ export class LevelEditorController {
         <p>Please refresh the page and try again. If the problem persists, check the browser console for more details.</p>
       </div>
     `;
-    
-    document.body.insertAdjacentHTML('afterbegin', errorMessage);
+
+    document.body.insertAdjacentHTML("afterbegin", errorMessage);
   }
 
   // ===== Public API =====
@@ -186,9 +189,9 @@ export class LevelEditorController {
 
   // ===== DOM Utilities =====
   async waitForDOM() {
-    if (document.readyState === 'loading') {
-      return new Promise(resolve => {
-        document.addEventListener('DOMContentLoaded', resolve, { once: true });
+    if (document.readyState === "loading") {
+      return new Promise((resolve) => {
+        document.addEventListener("DOMContentLoaded", resolve, { once: true });
       });
     }
     return Promise.resolve();
@@ -197,8 +200,8 @@ export class LevelEditorController {
   // ===== Cleanup =====
   destroy() {
     // Clean up any resources, event listeners, etc.
-    Object.values(this.managers).forEach(manager => {
-      if (manager && typeof manager.destroy === 'function') {
+    Object.values(this.managers).forEach((manager) => {
+      if (manager && typeof manager.destroy === "function") {
         manager.destroy();
       }
     });

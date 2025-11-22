@@ -1,5 +1,5 @@
 // Settings for Teleporter Dash
-import { GameState } from '../Utilities/gameState.js';
+import { GameState } from "../Utilities/gameState.js";
 
 export const SettingsManager = {
   current: {
@@ -25,7 +25,7 @@ export const SettingsManager = {
         isMuted: this.current.isMuted,
         isPracticeMode: this.current.practiceMode,
         autoRestartEnabled: this.current.autoRestartEnabled,
-        gameSpeed: this.current.gameSpeed
+        gameSpeed: this.current.gameSpeed,
       });
 
       // Apply control method

@@ -33,23 +33,35 @@ export class UIManager {
     if (gridZoomLevelDisplay) {
       gridZoomLevelDisplay.textContent = `${percentage}%`;
     }
-    document.documentElement.style.setProperty('--grid-scale', this.currentGridZoom.toString());
+    document.documentElement.style.setProperty(
+      "--grid-scale",
+      this.currentGridZoom.toString(),
+    );
   }
 
   updatePageZoom() {
-    document.documentElement.style.setProperty('--page-zoom', this.currentPageZoom.toString());
+    document.documentElement.style.setProperty(
+      "--page-zoom",
+      this.currentPageZoom.toString(),
+    );
   }
 
   gridZoomIn() {
     if (this.currentGridZoom < this.gridZoomMax) {
-      this.currentGridZoom = Math.min(this.currentGridZoom + this.gridZoomStep, this.gridZoomMax);
+      this.currentGridZoom = Math.min(
+        this.currentGridZoom + this.gridZoomStep,
+        this.gridZoomMax,
+      );
       this.updateGridZoomDisplay();
     }
   }
 
   gridZoomOut() {
     if (this.currentGridZoom > this.gridZoomMin) {
-      this.currentGridZoom = Math.max(this.currentGridZoom - this.gridZoomStep, this.gridZoomMin);
+      this.currentGridZoom = Math.max(
+        this.currentGridZoom - this.gridZoomStep,
+        this.gridZoomMin,
+      );
       this.updateGridZoomDisplay();
     }
   }
@@ -61,14 +73,20 @@ export class UIManager {
 
   pageZoomIn() {
     if (this.currentPageZoom < this.pageZoomMax) {
-      this.currentPageZoom = Math.min(this.currentPageZoom + this.pageZoomStep, this.pageZoomMax);
+      this.currentPageZoom = Math.min(
+        this.currentPageZoom + this.pageZoomStep,
+        this.pageZoomMax,
+      );
       this.updatePageZoom();
     }
   }
 
   pageZoomOut() {
     if (this.currentPageZoom > this.pageZoomMin) {
-      this.currentPageZoom = Math.max(this.currentPageZoom - this.pageZoomStep, this.pageZoomMin);
+      this.currentPageZoom = Math.max(
+        this.currentPageZoom - this.pageZoomStep,
+        this.pageZoomMin,
+      );
       this.updatePageZoom();
     }
   }
@@ -81,7 +99,9 @@ export class UIManager {
   // ===== Navigation =====
   handleBackToMenu() {
     if (GameState.current.editor.hasUnsavedChanges) {
-      if (confirm("You have unsaved changes. Are you sure you want to leave?")) {
+      if (
+        confirm("You have unsaved changes. Are you sure you want to leave?")
+      ) {
         window.location.href = "./index.html";
       }
     } else {
@@ -129,7 +149,8 @@ export class UIManager {
   handleBeforeUnload(e) {
     if (GameState.current.editor.hasUnsavedChanges) {
       e.preventDefault();
-      e.returnValue = "You have unsaved changes. Are you sure you want to leave?";
+      e.returnValue =
+        "You have unsaved changes. Are you sure you want to leave?";
     }
   }
 
@@ -144,10 +165,14 @@ export class UIManager {
     DOMManager.addEvent("#clearBtn", "click", () => this.clearGrid());
 
     // Back to menu
-    DOMManager.addEvent("#backToMenuBtn", "click", () => this.handleBackToMenu());
+    DOMManager.addEvent("#backToMenuBtn", "click", () =>
+      this.handleBackToMenu(),
+    );
 
     // Keyboard shortcuts
-    document.addEventListener("keydown", (e) => this.handleKeyboardShortcuts(e));
+    document.addEventListener("keydown", (e) =>
+      this.handleKeyboardShortcuts(e),
+    );
 
     // Stop drawing when mouse is released globally
     document.addEventListener("mouseup", () => {

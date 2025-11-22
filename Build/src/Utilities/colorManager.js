@@ -27,7 +27,7 @@ function updateBackgroundColor() {
   try {
     // Account for initial empty space using CONSTANTS
     const delayColumns = Math.floor(
-      CONSTANTS.INITIAL_SPACE / CONSTANTS.COLUMN_WIDTH
+      CONSTANTS.INITIAL_SPACE / CONSTANTS.COLUMN_WIDTH,
     );
     const adjustedColumn = Math.max(0, state.currentColumn - delayColumns);
 
@@ -35,7 +35,7 @@ function updateBackgroundColor() {
     const currentRawCode = state.levelColorRow[adjustedColumn];
     const nextRawCode =
       state.levelColorRow[
-      Math.min(adjustedColumn + 1, state.levelColorRow.length - 1)
+        Math.min(adjustedColumn + 1, state.levelColorRow.length - 1)
       ];
 
     // Don't force negative numbers, allow 0 for black
@@ -75,7 +75,7 @@ function updateBackgroundColor() {
     const newColor = interpolateColor(
       currentDarkerColor,
       nextDarkerColor,
-      factor
+      factor,
     );
 
     // Apply the new color if valid
@@ -160,4 +160,9 @@ function extractColorCode(code) {
   return code;
 }
 
-export { updateBackgroundColor, interpolateColor, makeColorDarker, extractColorCode };
+export {
+  updateBackgroundColor,
+  interpolateColor,
+  makeColorDarker,
+  extractColorCode,
+};

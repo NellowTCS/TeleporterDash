@@ -1,7 +1,7 @@
 // Audio Manager for Teleporter Dash
-import { GameState } from './gameState.js';
-import { SettingsManager } from '../TDEngine/settingsManager.js';
-import { DOMManager } from './domManager.js';
+import { GameState } from "./gameState.js";
+import { SettingsManager } from "../TDEngine/settingsManager.js";
+import { DOMManager } from "./domManager.js";
 
 export const AudioManager = {
   // // "Initialize" Variables
@@ -192,7 +192,7 @@ export const AudioManager = {
   toggleMute() {
     const currentMutedState = this.isMuted;
     const newMutedState = !currentMutedState;
-    
+
     // Update GameState
     GameState.setState({ isMuted: newMutedState });
     SettingsManager.current.isMuted = newMutedState;
@@ -206,10 +206,15 @@ export const AudioManager = {
     if (newMutedState) {
       this.lastMusicTime = currentMusic.currentTime;
       this.pause(currentMusic);
-    } else if (state.isLevelStarted && !state.isPaused && !state.isGameOver && !state.isLevelComplete) {
+    } else if (
+      state.isLevelStarted &&
+      !state.isPaused &&
+      !state.isGameOver &&
+      !state.isLevelComplete
+    ) {
       // Don't set currentTime before play, let play handle it
       this.play(currentMusic, this.lastMusicTime).catch((e) =>
-        console.error("Error playing music:", e)
+        console.error("Error playing music:", e),
       );
     }
 
@@ -236,9 +241,12 @@ export const AudioManager = {
           return `../Sound/Level Soundtracks/${GameState.current.editor.customMusicFile.name}`;
         } else {
           // For preview or test of uploaded music, create a new blob URL
-          const blob = new Blob([GameState.current.editor.customMusicFile.data], {
-            type: GameState.current.editor.customMusicFile.type,
-          });
+          const blob = new Blob(
+            [GameState.current.editor.customMusicFile.data],
+            {
+              type: GameState.current.editor.customMusicFile.type,
+            },
+          );
           return URL.createObjectURL(blob);
         }
       }

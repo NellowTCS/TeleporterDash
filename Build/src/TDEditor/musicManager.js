@@ -1,4 +1,4 @@
-// Level Editor: Music Manager  
+// Level Editor: Music Manager
 // Handles all music-related operations including custom music, preview, and selection
 
 import { GameState } from "../Utilities/gameState.js";
@@ -40,10 +40,11 @@ export class MusicManager {
 
       // Create blob URL for preview
       if (!AudioManager) {
-        AudioManager = (await import("../Utilities/audioManager.js")).AudioManager;
+        AudioManager = (await import("../Utilities/audioManager.js"))
+          .AudioManager;
       }
       const audioUrl = AudioManager.createCustomMusicBlob(
-        GameState.current.editor.customMusicFile
+        GameState.current.editor.customMusicFile,
       );
       if (audioUrl) {
         musicPreview.src = audioUrl;
@@ -82,19 +83,23 @@ export class MusicManager {
     if (musicPreview.paused) {
       try {
         if (!AudioManager) {
-          AudioManager = (await import("../Utilities/audioManager.js")).AudioManager;
+          AudioManager = (await import("../Utilities/audioManager.js"))
+            .AudioManager;
         }
         const musicPath = AudioManager.getMusicPath(musicSelect.value);
         await AudioManager.playPreview(musicPreview, musicPath);
         previewMusicBtn.textContent = "Stop Preview";
       } catch (error) {
         console.error("Failed to play music:", error);
-        alert("Failed to play music preview. Please ensure you have selected a valid audio file.");
+        alert(
+          "Failed to play music preview. Please ensure you have selected a valid audio file.",
+        );
         previewMusicBtn.textContent = "Preview Music";
       }
     } else {
       if (!AudioManager) {
-        AudioManager = (await import("../Utilities/audioManager.js")).AudioManager;
+        AudioManager = (await import("../Utilities/audioManager.js"))
+          .AudioManager;
       }
       AudioManager.stopPreview(musicPreview);
       previewMusicBtn.textContent = "Preview Music";
@@ -105,7 +110,7 @@ export class MusicManager {
   handleMusicSelection() {
     const musicSelect = DOMManager.getElement("#musicSelect");
     const customMusicInput = DOMManager.getElement("#customMusicInput");
-    
+
     if (musicSelect.value === "custom") {
       customMusicInput.click();
     }
@@ -135,7 +140,8 @@ export class MusicManager {
     window.addEventListener("beforeunload", async () => {
       const musicPreview = DOMManager.getElement("#musicPreview");
       if (!AudioManager) {
-        AudioManager = (await import("../Utilities/audioManager.js")).AudioManager;
+        AudioManager = (await import("../Utilities/audioManager.js"))
+          .AudioManager;
       }
       AudioManager.stopPreview(musicPreview);
     });

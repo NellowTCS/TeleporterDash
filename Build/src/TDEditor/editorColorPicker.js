@@ -79,7 +79,10 @@ export function initializeColorPickers() {
     // Always switch to platform tool when selecting a color
     const platformButton = document.querySelector('button[data-type="1"]');
     if (platformButton) {
-      (platformButton instanceof HTMLButtonElement ? platformButton : null)?.click();
+      (platformButton instanceof HTMLButtonElement
+        ? platformButton
+        : null
+      )?.click();
     }
   });
 }
@@ -88,5 +91,5 @@ export function initializeColorPickers() {
 const colorPicker = document.getElementById("colorPicker");
 colorPicker.addEventListener("change", function () {
   // @ts-ignore
-  handleColorSelection(parseInt((this).value));
+  handleColorSelection(parseInt(this.value));
 });

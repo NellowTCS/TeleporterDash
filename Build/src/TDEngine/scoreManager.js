@@ -1,5 +1,5 @@
 // Score Manager for Teleporter Dash
-import { DOMManager } from '../Utilities/domManager.js';
+import { DOMManager } from "../Utilities/domManager.js";
 
 export const ScoreManager = {
   // Default scores structure using Map
@@ -14,7 +14,10 @@ export const ScoreManager = {
       const request = indexedDB.open("TeleporterDashDB", this.dbVersion);
 
       request.onerror = (event) => {
-        console.error("IndexedDB error:", /** @type {IDBOpenDBRequest} */ (event.target).error);
+        console.error(
+          "IndexedDB error:",
+          /** @type {IDBOpenDBRequest} */ (event.target).error,
+        );
         reject(/** @type {IDBOpenDBRequest} */ (event.target).error);
       };
 
@@ -234,7 +237,7 @@ export const ScoreManager = {
             <div style="margin-bottom: 8px; display: flex; justify-content: space-between;">
                 <span>Best Time:</span>
                 <span style="color: #00ff00;">${this.formatTime(
-                  stats.bestTime
+                  stats.bestTime,
                 )}</span>
             </div>
             <div style="margin-bottom: 8px; display: flex; justify-content: space-between;">
@@ -290,11 +293,11 @@ export const ScoreManager = {
                         <div style="display: flex; justify-content: space-between; font-size: 0.9em; color: #aaa;">
                             <span>${run.deaths} deaths</span>
                             <span>${new Date(
-                              run.date
+                              run.date,
                             ).toLocaleDateString()}</span>
                         </div>
                     </div>
-                `
+                `,
                   )
                   .join("")}
             `;
@@ -364,7 +367,7 @@ export const ScoreManager = {
                             <div style="font-size: 0.9em; color: #00ff00;">Last Run:</div>
                             <div style="display: flex; justify-content: space-between; color: #aaa;">
                                 <span>${this.formatTime(
-                                  stats.recentRuns[0].time
+                                  stats.recentRuns[0].time,
                                 )}</span>
                                 <span>${stats.recentRuns[0].jumps} jumps</span>
                                 <span>${

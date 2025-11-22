@@ -10,7 +10,7 @@ export class ErrorHandler {
     if (ErrorHandler.instance) {
       return ErrorHandler.instance;
     }
-    
+
     this.errorContainer = null;
     this.setupErrorContainer();
     ErrorHandler.instance = this;
@@ -18,10 +18,10 @@ export class ErrorHandler {
 
   setupErrorContainer() {
     // Create a container for error messages if it doesn't exist
-    let container = document.getElementById('error-container');
+    let container = document.getElementById("error-container");
     if (!container) {
-      container = document.createElement('div');
-      container.id = 'error-container';
+      container = document.createElement("div");
+      container.id = "error-container";
       container.style.cssText = `
         position: fixed;
         top: 20px;
@@ -35,7 +35,7 @@ export class ErrorHandler {
   }
 
   // ===== Error Notification Methods =====
-  showError(title, message, type = 'error', duration = 8000) {
+  showError(title, message, type = "error", duration = 8000) {
     const errorElement = this.createErrorElement(title, message, type);
     this.errorContainer.appendChild(errorElement);
 
@@ -50,25 +50,25 @@ export class ErrorHandler {
   }
 
   showWarning(title, message, duration = 6000) {
-    return this.showError(title, message, 'warning', duration);
+    return this.showError(title, message, "warning", duration);
   }
 
   showInfo(title, message, duration = 4000) {
-    return this.showError(title, message, 'info', duration);
+    return this.showError(title, message, "info", duration);
   }
 
   showSuccess(title, message, duration = 3000) {
-    return this.showError(title, message, 'success', duration);
+    return this.showError(title, message, "success", duration);
   }
 
   createErrorElement(title, message, type) {
-    const element = document.createElement('div');
-    
+    const element = document.createElement("div");
+
     const colors = {
-      error: { bg: '#ffebee', border: '#f44336', text: '#c62828' },
-      warning: { bg: '#fff3e0', border: '#ff9800', text: '#ef6c00' },
-      info: { bg: '#e3f2fd', border: '#2196f3', text: '#1565c0' },
-      success: { bg: '#e8f5e8', border: '#4caf50', text: '#2e7d32' }
+      error: { bg: "#ffebee", border: "#f44336", text: "#c62828" },
+      warning: { bg: "#fff3e0", border: "#ff9800", text: "#ef6c00" },
+      info: { bg: "#e3f2fd", border: "#2196f3", text: "#1565c0" },
+      success: { bg: "#e8f5e8", border: "#4caf50", text: "#2e7d32" },
     };
 
     const color = colors[type] || colors.error;
@@ -102,7 +102,7 @@ export class ErrorHandler {
 
   removeError(errorElement) {
     if (errorElement && errorElement.parentElement) {
-      errorElement.style.animation = 'slideOut 0.3s ease-in forwards';
+      errorElement.style.animation = "slideOut 0.3s ease-in forwards";
       setTimeout(() => {
         if (errorElement.parentElement) {
           errorElement.parentElement.removeChild(errorElement);
@@ -118,46 +118,46 @@ export class ErrorHandler {
   }
 
   // ===== Error Handling Utilities =====
-  static handleAsyncError(asyncFunction, context = 'Operation') {
+  static handleAsyncError(asyncFunction, context = "Operation") {
     return async (...args) => {
       try {
         return await asyncFunction(...args);
       } catch (error) {
         console.error(`${context} failed:`, error);
-        
+
         const handler = new ErrorHandler();
         handler.showError(
           `${context} Failed`,
-          error.message || 'An unexpected error occurred. Please try again.',
-          'error'
+          error.message || "An unexpected error occurred. Please try again.",
+          "error",
         );
-        
+
         throw error; // Re-throw for additional handling if needed
       }
     };
   }
 
-  static wrapWithErrorHandling(fn, context = 'Operation') {
+  static wrapWithErrorHandling(fn, context = "Operation") {
     return (...args) => {
       try {
         const result = fn(...args);
-        
+
         // Handle async functions
-        if (result && typeof result.then === 'function') {
+        if (result && typeof result.then === "function") {
           return ErrorHandler.handleAsyncError(async () => result, context)();
         }
-        
+
         return result;
       } catch (error) {
         console.error(`${context} failed:`, error);
-        
+
         const handler = new ErrorHandler();
         handler.showError(
           `${context} Failed`,
-          error.message || 'An unexpected error occurred. Please try again.',
-          'error'
+          error.message || "An unexpected error occurred. Please try again.",
+          "error",
         );
-        
+
         throw error;
       }
     };
@@ -165,7 +165,7 @@ export class ErrorHandler {
 
   // ===== Validation Helpers =====
   static validateRequired(value, fieldName) {
-    if (!value || (typeof value === 'string' && value.trim() === '')) {
+    if (!value || (typeof value === "string" && value.trim() === "")) {
       throw new Error(`${fieldName} is required`);
     }
     return value;
@@ -173,39 +173,48 @@ export class ErrorHandler {
 
   static validateMatrix(matrix) {
     if (!Array.isArray(matrix)) {
-      throw new Error('Level matrix must be an array');
+      throw new Error("Level matrix must be an array");
     }
-    
+
     if (matrix.length === 0) {
-      throw new Error('Level matrix cannot be empty');
+      throw new Error("Level matrix cannot be empty");
     }
-    
+
     if (!Array.isArray(matrix[0])) {
-      throw new Error('Level matrix rows must be arrays');
+      throw new Error("Level matrix rows must be arrays");
     }
-    
+
     const width = matrix[0].length;
     for (let i = 0; i < matrix.length; i++) {
       if (!Array.isArray(matrix[i]) || matrix[i].length !== width) {
-        throw new Error(`All matrix rows must have the same width (expected ${width}, got ${matrix[i].length} at row ${i})`);
+        throw new Error(
+          `All matrix rows must have the same width (expected ${width}, got ${matrix[i].length} at row ${i})`,
+        );
       }
     }
-    
+
     return matrix;
   }
 
   static validateFileType(file, allowedTypes) {
-    if (!allowedTypes.some(type => file.name.endsWith(type) || file.type.includes(type.replace('.', '')))) {
-      throw new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`);
+    if (
+      !allowedTypes.some(
+        (type) =>
+          file.name.endsWith(type) || file.type.includes(type.replace(".", "")),
+      )
+    ) {
+      throw new Error(
+        `Invalid file type. Allowed types: ${allowedTypes.join(", ")}`,
+      );
     }
     return file;
   }
 }
 
 // Add CSS animations for notifications
-if (!document.getElementById('error-handler-styles')) {
-  const style = document.createElement('style');
-  style.id = 'error-handler-styles';
+if (!document.getElementById("error-handler-styles")) {
+  const style = document.createElement("style");
+  style.id = "error-handler-styles";
   style.textContent = `
     @keyframes slideIn {
       from { transform: translateX(100%); opacity: 0; }

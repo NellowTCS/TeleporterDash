@@ -16,6 +16,6 @@
   --transition-speed: 0.3s;
   --menu-scale: 1;
   --level-selector-scale: 1;
-  --content-scale: 1; /* New variable for content scaling */
+  --content-scale: 1;
   --text-color: #000000;
 }
