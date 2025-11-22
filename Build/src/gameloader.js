@@ -454,7 +454,7 @@ function updateGame() {
 
   // Player physics calculations (frame-rate independent)
   const newVelocity = state.playerVelocity + gravity * deltaTime;
-  const currentBottom = parseInt(window.getComputedStyle(player).bottom);
+  const currentBottom = parseFloat(window.getComputedStyle(player).bottom);
   let newBottom = currentBottom - newVelocity * deltaTime;
 
   // Check ground collision with proper constants
@@ -497,7 +497,7 @@ function updateGame() {
   // Process each obstacle
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const obstacle = obstacles[i];
-    let obstacleLeft = parseInt(obstacle.element.style.left);
+    let obstacleLeft = parseFloat(obstacle.element.style.left) || 0;
     obstacle.element.style.left = obstacleLeft - frameSpeed + "px"; // Use frame-rate independent speed
 
     // Remove off-screen obstacles to improve performance
@@ -529,7 +529,7 @@ function updateGame() {
 
             // Update all obstacle positions
             obstacles.forEach((obs) => {
-              const obsLeft = parseInt(obs.element.style.left || "0");
+              const obsLeft = parseFloat(obs.element.style.left || "0");
               obs.element.style.left = obsLeft + dx + "px";
             });
 
@@ -541,7 +541,7 @@ function updateGame() {
 
             // Update all obstacle positions
             obstacles.forEach((obs) => {
-              const obsLeft = parseInt(obs.element.style.left || "0");
+              const obsLeft = parseFloat(obs.element.style.left || "0");
               obs.element.style.left = obsLeft + dx + "px";
             });
 
@@ -550,7 +550,7 @@ function updateGame() {
           } else {
             // Vertical teleport
             const dy = rotation === 180 ? -120 : 180;
-            player.style.bottom = parseInt(player.style.bottom) + dy + "px";
+            player.style.bottom = parseFloat(player.style.bottom) + dy + "px";
           }
 
           GameState.setState({
@@ -559,8 +559,9 @@ function updateGame() {
           createParticles("#ff00ff");
           setTimeout(() => createParticles("#ff00ff"), 100);
         } else if (obstacle.type === "platform") {
+          // Pass player element (not playerRect) to physics engine platform handler
           const platformCollision = handlePlatformCollision(
-            playerRect,
+            player,
             obstacle.element,
           );
           if (platformCollision === "death" && !state.isPracticeMode) {

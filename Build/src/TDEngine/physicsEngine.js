@@ -1,126 +1,146 @@
 import { GameState } from "../Utilities/gameState";
-import { player } from "../gameloader.js";
 
+/**
+ * Clear obstacle elements and empty the passed-in obstacles array in-place.
+ * This avoids reassigning the outer reference.
+ */
 function clearObstacles(obstacles) {
-  // Clear obstacles and particles
-  obstacles.forEach((obstacle) => {
+  // Remove DOM elements
+  for (let i = 0; i < obstacles.length; i++) {
+    const obstacle = obstacles[i];
     if (obstacle.element && obstacle.element.parentNode) {
       obstacle.element.remove();
     }
-  });
-  obstacles = [];
+  }
+  // Clear the array in-place so callers keep the same reference
+  obstacles.length = 0;
 }
 
 /**
- * Handles collision detection between player and obstacles
- * @param {HTMLElement} player - The player element
- * @param {HTMLElement} obstacle - The obstacle element to check collision with
- * @returns {boolean} - True if collision detected, false otherwise
+ * Handles collision detection between player element and an obstacle element.
+ * Uses style.left/style.bottom as authoritative positions (float-aware).
+ * Returns true if there is an overlap between the two boxes.
+ *
+ * player: HTMLElement (player element)
+ * obstacle: HTMLElement (single obstacle block element)
  */
 function checkCollision(player, obstacle) {
+  if (!player || !obstacle) return false;
   if (obstacle.classList.contains("empty-block")) return false;
 
-  // Get raw positions without camera influence
-  const playerBottom = parseInt(player.style.bottom);
-  const playerLeft = parseInt(player.style.left);
-  const obstacleBottom = parseInt(obstacle.style.bottom);
-  const obstacleLeft = parseInt(obstacle.style.left);
-  const tolerance = 5; // Small overlap allowance for smoother collision
-  const playerSize = 30; // Player width/height
-  // @ts-ignore
-  const obstacleSize = obstacle.type === "platform" ? 45 : 30;
+  // Use precise floats (parseFloat) to avoid truncation gaps
+  const playerBottom = parseFloat(player.style.bottom) || 0;
+  const playerLeft = parseFloat(player.style.left) || 0;
+  const obstacleBottom = parseFloat(obstacle.style.bottom) || 0;
+  const obstacleLeft = parseFloat(obstacle.style.left) || 0;
 
-  // Get obstacle rotation
+  const playerSize = 30; // player square size in px
+  const obstacleSize = obstacle.classList.contains("platform") ? 45 : 30;
+
+  // Determine rotation (for spikes) from transform string if present
   let rotation = 0;
   const transform = obstacle.style.transform;
   if (transform) {
     const match = transform.match(/rotate\((\d+)deg\)/);
-    if (match) {
-      rotation = parseInt(match[1]);
-    }
+    if (match) rotation = parseInt(match[1], 10);
   }
 
-  // Adjust collision box based on rotation for spikes
-  let adjustedObstacleBottom = obstacleBottom;
+  // Adjust obstacle collision box for spike orientation
   let adjustedObstacleLeft = obstacleLeft;
-  // @ts-ignore
-  if (obstacle.type === "spike") {
+  let adjustedObstacleBottom = obstacleBottom;
+  if (obstacle.classList.contains("spike")) {
     switch (rotation) {
-      case 90: // Pointing left
+      case 90: // pointing left
         adjustedObstacleLeft += obstacleSize / 2;
         break;
-      case 180: // Pointing up
+      case 180: // pointing up
         adjustedObstacleBottom += obstacleSize / 2;
         break;
-      case 270: // Pointing right
+      case 270: // pointing right
         adjustedObstacleLeft -= obstacleSize / 2;
         break;
-      default: // Pointing down or no rotation
+      default: // pointing down or no rotation
         adjustedObstacleBottom -= obstacleSize / 2;
+        break;
     }
   }
 
-  // Check for overlap in both x and y directions
-  return !(
-    playerLeft + playerSize - tolerance < adjustedObstacleLeft ||
-    playerLeft + tolerance > adjustedObstacleLeft + obstacleSize ||
-    playerBottom + playerSize - tolerance < adjustedObstacleBottom ||
-    playerBottom + tolerance > adjustedObstacleBottom + obstacleSize
-  );
+  // Small tolerance to avoid jittering through edges; keep small (0 - 2)
+  const tolerance = 0.5;
+
+  const collision =
+    !(
+      playerLeft + playerSize - tolerance < adjustedObstacleLeft ||
+      playerLeft + tolerance > adjustedObstacleLeft + obstacleSize ||
+      playerBottom + playerSize - tolerance < adjustedObstacleBottom ||
+      playerBottom + tolerance > adjustedObstacleBottom + obstacleSize
+    );
+
+  return collision;
 }
 
 /**
- * Handles specific collision logic for platforms
- * Includes landing detection and side collision
+ * Platform collision logic.
+ * Params:
+ *  - playerElement: the player HTMLElement (not a client rect)
+ *  - platform: the platform HTMLElement
+ *
+ * Returns:
+ *  - "death" if player hit the side and should die (lol)
+ *  - "safe" if player landed safely (snaps to top)
+ *  - "none" otherwise
+ *
  */
-// @ts-ignore
-function handlePlatformCollision(playerRect, platform) {
-  // Get raw positions without camera influence
-  const playerBottom = parseInt(player.style.bottom);
-  const platformBottom = parseInt(platform.style.bottom);
-  const playerLeft = parseInt(player.style.left);
-  const platformLeft = parseInt(platform.style.left);
+function handlePlatformCollision(playerElement, platform) {
+  if (!playerElement || !platform) return "none";
 
-  // Calculate overlaps
-  const horizontalOverlap =
-    Math.min(playerLeft + 30, platformLeft + 40) -
-    Math.max(playerLeft, platformLeft);
-  const verticalOverlap =
-    Math.min(playerBottom + 30, platformBottom + 40) -
-    Math.max(playerBottom, platformBottom);
+  // Get positions using styles (floats)
+  const playerBottom = parseFloat(playerElement.style.bottom) || 0;
+  const playerLeft = parseFloat(playerElement.style.left) || 0;
+  const platformBottom = parseFloat(platform.style.bottom) || 0;
+  const platformLeft = parseFloat(platform.style.left) || 0;
 
   const playerWidth = 30;
+  const platformWidth = 40; // overlap math uses 40, snap uses 45 below for visual offset
+  const platformRenderHeight = 45; // value used when setting player bottom to sit on top
+
+  // Overlap calculations
+  const horizontalOverlap =
+    Math.min(playerLeft + playerWidth, platformLeft + platformWidth) -
+    Math.max(playerLeft, platformLeft);
+  const verticalOverlap =
+    Math.min(playerBottom + playerWidth, platformBottom + platformRenderHeight) -
+    Math.max(playerBottom, platformBottom);
+
   const horizontalCollision = horizontalOverlap / playerWidth;
 
-  // First, check for side collision - this takes priority
-  // If we have any meaningful horizontal collision and we're not jumping, it's death
   const state = GameState.getState();
+
+  // Prioritize side collision: if we have a significant horizontal overlap while not near the platform top,
+  // and player is not actively jumping, consider it a side collision (death).
   if (
-    horizontalCollision > 0.2 && // Significant horizontal collision
-    verticalOverlap > 5 && // Some vertical overlap
-    !state.isJumping && // Not in a jump
-    Math.abs(playerBottom - (platformBottom + 40)) > 15
+    horizontalCollision > 0.2 &&
+    verticalOverlap > 5 &&
+    !state.isJumping &&
+    Math.abs(playerBottom - (platformBottom + platformRenderHeight)) > 15
   ) {
-    // Not very close to top
     return "death";
   }
 
-  // Only then check for safe landing
+  // Safe landing: coming down, near top of platform, and enough horizontal overlap
   if (
-    state.playerVelocity > 0 && // Moving down
-    Math.abs(playerBottom - (platformBottom + 40)) < 10 && // Very close to top
+    state.playerVelocity > 0 && // moving down
+    Math.abs(playerBottom - (platformBottom + platformRenderHeight)) < 10 && // near platform top
     horizontalCollision > 0.3
   ) {
-    // Enough horizontal overlap for landing
-
-    // Safe landing
     GameState.setState({
       isOnPlatform: true,
       isJumping: false,
       doubleJumpAvailable: true,
       playerVelocity: 0,
     });
-    player.style.bottom = platformBottom + 45 + "px";
+    // Snap player visually to platform top
+    playerElement.style.bottom = platformBottom + platformRenderHeight + "px";
     return "safe";
   }
 

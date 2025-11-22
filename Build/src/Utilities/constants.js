@@ -3,9 +3,9 @@ export const COLOR_MAP = {
   0: "#000000", // Black
   "-1": "#ff6b6b", // Red
   "-2": "#4ecdc4", // Cyan
-  "-3": "#45b7d1", // Blue
+  "-3": "#ff9f1c", // Blue
   "-4": "#96ceb4", // Green
-  "-5": "#ff9f1c", // Orange
+  "-5": "#45b7d1", // Orange
   "-6": "#ffbe0b", // Yellow
   "-7": "#ff006e", // Pink
   "-8": "#8338ec", // Purple
