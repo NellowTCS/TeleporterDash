@@ -1,6 +1,8 @@
 import { GameState } from "./gameState";
 import { CONSTANTS, COLOR_MAP } from "./constants";
 
+let colorIndex = 0;
+
 const COLOR_TRANSITION = {
   DURATION: 2, // Duration of each color transition in seconds
   SPEED: 0.0052, // Speed of transition (smaller = slower)
