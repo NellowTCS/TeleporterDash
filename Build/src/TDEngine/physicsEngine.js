@@ -1,21 +1,24 @@
 import { GameState } from "../Utilities/gameState.js";
 
+/* --- Utilities --- */
+
 /**
- * Clear obstacle elements and empty the passed-in obstacles array in-place.
+ * Remove obstacle DOM nodes and clear the array in-place.
+ * Keep the same array reference to avoid callers needing to rebind.
  */
 function clearObstacles(obstacles) {
   for (let i = 0; i < obstacles.length; i++) {
-    const obstacle = obstacles[i];
-    if (obstacle.element && obstacle.element.parentNode) {
-      obstacle.element.remove();
+    const o = obstacles[i];
+    if (o && o.element && o.element.parentNode) {
+      o.element.remove();
     }
   }
   obstacles.length = 0;
 }
 
 /**
- * Return rectangle for element relative to the container element.
- * Coordinates are floats (no truncation).
+ * Return a rect for 'element' relative to the provided 'container'.
+ * Using getBoundingClientRect ensures we account for camera transforms.
  */
 function getRelativeRect(element, container) {
   const elRect = element.getBoundingClientRect();
@@ -31,7 +34,8 @@ function getRelativeRect(element, container) {
 }
 
 /**
- * Axis-aligned rectangle intersection.
+ * Axis-aligned rectangle intersection test.
+ * Tolerance expands/shrinks the boxes (positive tolerance = more permissive).
  */
 function rectsIntersect(a, b, tolerance = 0) {
   return !(
@@ -42,25 +46,22 @@ function rectsIntersect(a, b, tolerance = 0) {
   );
 }
 
-/**
- * checkCollision(playerElem, obstacleElem, containerElem, tolerance = 0)
- * Uses container-relative rects for consistent collision detection.
- */
 function checkCollision(playerElem, obstacleElem, containerElem, tolerance = 0) {
   if (!playerElem || !obstacleElem || !containerElem) return false;
   if (obstacleElem.classList.contains("empty-block")) return false;
 
-  const pRect = getRelativeRect(playerElem, containerElem);
-  const oRect = getRelativeRect(obstacleElem, containerElem);
+  const p = getRelativeRect(playerElem, containerElem);
+  const o = getRelativeRect(obstacleElem, containerElem);
 
-  // Optionally adjust obstacle rect for spikes pointing orientation.
-  let obstacleRect = { ...oRect };
+  // Adjust obstacle rect for spike orientation (shrinking toward tip so collisions feel accurate)
+  let obstacleRect = { ...o };
+
   if (obstacleElem.classList.contains("spike")) {
     const transform = obstacleElem.style.transform || "";
     const match = transform.match(/rotate\((\d+)\s*deg\)/);
     if (match) {
       const rot = parseInt(match[1], 10);
-      // Small shrink towards tip to be less generous on spike collisions
+      // Conservative shrink amount proportional to obstacle size
       const shrink = Math.max(0, Math.min(6, Math.round(obstacleRect.width * 0.12)));
       switch (rot) {
         case 90:
@@ -80,16 +81,12 @@ function checkCollision(playerElem, obstacleElem, containerElem, tolerance = 0) 
     }
   }
 
-  return rectsIntersect(pRect, obstacleRect, tolerance);
+  return rectsIntersect(p, obstacleRect, tolerance);
 }
 
 /**
  * handlePlatformCollision(playerElem, platformElem, containerElem)
  * Returns: "death" | "safe" | "none"
- *
- * Uses container-relative rects for detection. When snapping the player to the platform top,
- * computes the appropriate style.bottom value using the container height and platform rect so
- * snapping is in the same coordinate system the renderer uses.
  */
 function handlePlatformCollision(playerElem, platformElem, containerElem) {
   if (!playerElem || !platformElem || !containerElem) return "none";
@@ -104,19 +101,22 @@ function handlePlatformCollision(playerElem, platformElem, containerElem) {
   const horizontalOverlap =
     Math.min(pRect.left + playerWidth, platRect.left + platformWidth) -
     Math.max(pRect.left, platRect.left);
+
   const verticalOverlap =
     Math.min(pRect.top + pRect.height, platRect.top + platformHeight) -
     Math.max(pRect.top, platRect.top);
 
   const horizontalCollision = horizontalOverlap / Math.max(1, playerWidth);
+
   const state = GameState.getState();
 
-  // How far player's bottom is from platform top (in container coordinates)
-  const playerBottomY = pRect.top + pRect.height; // Y coordinate of player's bottom (from top of container)
-  const platTopY = platRect.top; // Y coordinate of platform top (from top of container)
+  // Distance between player's bottom (y from top of container) and platform top
+  const playerBottomY = pRect.top + pRect.height;
+  const platTopY = platRect.top;
   const nearTopDelta = Math.abs(playerBottomY - platTopY);
 
-  // Side collision (priority => death)
+  // Side collision detection (prioritise death) — similar to C++ logic:
+  // If there's a large horizontal overlap while not close to the top and player isn't jumping => side hit
   if (
     horizontalCollision > 0.2 &&
     verticalOverlap > 5 &&
@@ -126,24 +126,29 @@ function handlePlatformCollision(playerElem, platformElem, containerElem) {
     return "death";
   }
 
-  // Safe landing detection: moving down, close to top, enough horizontal overlap
+  // Safe landing detection: player moving down (positive playerVelocity in our GameState),
+  // near the top of the platform, and with sufficient horizontal overlap.
   if (
     state.playerVelocity > 0 &&
     nearTopDelta < 10 &&
     horizontalCollision > 0.3
   ) {
-    // Compute platform bottom-style value if present, otherwise compute from rect:
-    // style.bottom for an element is: bottom = containerHeight - (elem.top + elem.height)
+    // We need to set player.style.bottom in the same coordinate system used by the renderer:
+    // Many game UIs use style.bottom (pixels from bottom of container). Compute that:
     const containerHeight = containerElem.getBoundingClientRect().height;
+
+    // If platformElem has a style.bottom set, prefer it (consistent with existing level parsing),
+    // otherwise compute bottom from the platform's rect.
     let platBottomStyle = parseFloat(platformElem.style.bottom);
     if (!Number.isFinite(platBottomStyle)) {
+      // bottom = containerHeight - (platRect.top + platformHeight)
       platBottomStyle = Math.round(containerHeight - (platRect.top + platformHeight));
     }
 
-    // Player's bottom style should be platformBottomStyle + platformHeight
+    // Snap player's bottom to sit on top of platform:
+    // playerBottomStyle = platformBottomStyle + platformHeight
     let snapBottom = platBottomStyle + platformHeight;
-    // Round to integer pixels to avoid subpixel mismatch with renderer
-    snapBottom = Math.round(snapBottom);
+    snapBottom = Math.round(snapBottom); // round to integer pixels to avoid tiny gaps
 
     playerElem.style.bottom = `${snapBottom}px`;
 
@@ -160,4 +165,30 @@ function handlePlatformCollision(playerElem, platformElem, containerElem) {
   return "none";
 }
 
-export { clearObstacles, checkCollision, handlePlatformCollision, getRelativeRect };
+/**
+ * Computes an object with the player's style-based box relative to the container.
+ */
+function getStyleBoxRelativeToContainer(elem, container) {
+  const contRect = container.getBoundingClientRect();
+  const contH = contRect.height;
+  const styleLeft = parseFloat(elem.style.left) || 0;
+  const styleBottom = parseFloat(elem.style.bottom) || 0;
+  const width = elem.getBoundingClientRect().width || 30;
+  const height = elem.getBoundingClientRect().height || 30;
+  // Convert bottom to top-based coordinates like getBoundingClientRect provides
+  const top = contH - styleBottom - height;
+  return {
+    left: styleLeft,
+    top,
+    width,
+    height,
+  };
+}
+
+export {
+  clearObstacles,
+  getRelativeRect,
+  checkCollision,
+  handlePlatformCollision,
+  getStyleBoxRelativeToContainer,
+};
