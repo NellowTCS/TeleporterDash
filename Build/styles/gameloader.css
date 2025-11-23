@@ -1,3 +1,14 @@
+html, body {
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Page layout */
 body {
   margin: 0;
   display: flex;
@@ -10,12 +21,14 @@ body {
   touch-action: manipulation;
 }
 
+/* Game container
+   - overflow hidden prevents visible seams from out-of-grid elements
+   - use transform hints to reduce subpixel AA
+*/
 #gameContainer {
   position: relative;
   width: calc(100% - 80px);
-  max-width: 1000px;
   height: calc(100% - 60px);
-  min-height: 460px;
   margin: 0 auto;
   overflow: hidden;
   perspective: 1000px;
@@ -24,50 +37,99 @@ body {
   --to-color: #000000;
   background-color: var(--from-color);
   will-change: background-color;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* ensure no default padding/margins on container */
+  padding: 0;
 }
 
+/* Camera container (the element we translate for camera follow)
+   Keep transform changes GPU-accelerated and rounded in JS.
+*/
 #cameraContainer {
   position: absolute;
   width: 100%;
   height: 100%;
-  transition: transform 0.1s ease-out;
+  transition: transform 0.08s linear;
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
+/* Player defaults (renderer will override x/y and rotation)
+   keep crisp sizing and no margins
+*/
 #player {
   position: absolute;
   width: 30px;
   height: 30px;
   background: #1ce92d;
-  bottom: 50px;
-  left: 100px;
+  bottom: 50px; /* initial fallback */
+  left: 100px;  /* initial fallback */
   z-index: 1000;
   transform-origin: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  will-change: transform, left, bottom;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
-.platform {
+/* Platform and grid cell defaults
+   Match row spacing = 45px used by the parser/render engine.
+   These are defaults so older code or CSS-only placements still line up.
+*/
+.platform,
+.empty-block {
   position: absolute;
   background: #4287f5;
-  bottom: 50px;
+  bottom: 50px; /* fallback baseline */
+  width: 45px;
+  height: 45px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  background-clip: padding-box;
+  will-change: left, bottom;
+    transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
+/* Spike
+   RenderEngine now creates triangle spikes via borders and sets dimensions inline.
+   Keep the CSS minimal and crisp, do not hard-code sizes here to avoid mismatch.
+*/
 .spike {
   position: absolute;
-  bottom: 50px;
+  /* No default width/height so renderEngine can set border sizes precisely */
   width: 0;
   height: 0;
-  border-left: 15px solid transparent;
-  border-right: 15px solid transparent;
-  border-bottom: 30px solid #ff0000;
+  pointer-events: auto;
+  margin: 0;
+  padding: 0;
+  will-change: transform, left, bottom;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
+/* Ground area */
 #ground {
   position: absolute;
   bottom: 0;
   width: 100%;
   height: 50px;
   background: #333;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
+/* UI elements */
 #score {
   position: absolute;
   top: 20px;
@@ -97,6 +159,7 @@ body {
   border-radius: 5px;
 }
 
+/* Particles */
 .particle {
   position: absolute;
   width: 4px;
@@ -104,8 +167,12 @@ body {
   background: #00ff00;
   border-radius: 50%;
   pointer-events: none;
+  will-change: transform, left, top;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
+/* Teleporter styling (keeps original look) */
 .teleporter {
   position: absolute;
   width: 30px;
@@ -114,6 +181,12 @@ body {
   bottom: 50px;
   border-radius: 15px;
   animation: glow 1s infinite alternate;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  will-change: transform, left, bottom;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .teleporter::after {
@@ -130,29 +203,7 @@ body {
   pointer-events: none;
 }
 
-.teleporter[data-rotation="90"]::after {
-  border: none;
-  border-bottom: 12px solid white;
-  border-right: 8px solid transparent;
-  border-left: 8px solid transparent;
-}
-
-.teleporter[data-rotation="180"]::after {
-  border-top: none;
-  border-bottom: 12px solid white;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-}
-
-.teleporter[data-rotation="270"]::after {
-  border: none;
-  border-bottom: 12px solid white;
-  border-right: 8px solid transparent;
-  border-left: 8px solid transparent;
-}
-
-/* Rotation classes for teleporter */
-
+/* Keyframe glow */
 @keyframes glow {
   from {
     box-shadow: 0 0 5px #ff00ff;
@@ -163,6 +214,7 @@ body {
   }
 }
 
+/* Level complete overlay */
 #levelComplete {
   position: fixed;
   top: 40%;
@@ -180,6 +232,7 @@ body {
   display: none;
 }
 
+/* Progress bar */
 #progressContainer {
   position: fixed;
   top: 20px;
@@ -209,7 +262,7 @@ body {
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
-/* Add tooltip styling */
+/* Tooltips */
 [title] {
   position: relative;
   cursor: help;
@@ -241,7 +294,7 @@ body {
   }
 }
 
-/* Add better touch controls and responsive design */
+/* Responsive */
 @media (max-width: 768px) {
   #gameContainer {
     width: 100%;
@@ -249,6 +302,7 @@ body {
   }
 }
 
+/* Mute / Pause buttons */
 #muteButton {
   position: fixed;
   top: 20px;
@@ -283,6 +337,7 @@ body {
   z-index: 2000;
 }
 
+/* Background transition utility */
 @keyframes backgroundTransition {
   0% {
     background-color: var(--from-color);
@@ -291,4 +346,13 @@ body {
   100% {
     background-color: var(--to-color);
   }
+}
+
+/* Utility classes to force crisp edges (use sparingly) */
+.crisp {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  image-rendering: optimizeSpeed;
 }

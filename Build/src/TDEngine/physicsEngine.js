@@ -1,11 +1,21 @@
 import { GameState } from "../Utilities/gameState.js";
 
-/* --- Utilities --- */
+/*
+ Physics engine operating on numeric world-space objects.
 
-/**
- * Remove obstacle DOM nodes and clear the array in-place.
- * Keep the same array reference to avoid callers needing to rebind.
- */
+ World convention:
+  - Positions are numeric: x (px from left of world), y (px from bottom of game container)
+  - Sizes: width, height in px
+  - Player object: { x, y, width, height, velocityY, rotation, element? }
+  - Obstacle object: { x, y, width, height, type, rotation?, color?, element? }
+
+ Exposed functions:
+  - clearObstacles(obstaclesArray)                       // clears DOM and empties array
+  - checkCollisionWorld(playerObj, obstacleObj)          // AABB intersection in world coords (returns boolean)
+  - handlePlatformCollisionWorld(playerObj, platformObj) // platform logic using world coords; mutates playerObj.y and GameState; returns "death"|"safe"|"none"
+  - getStyleBoxRelativeToContainer(elem, container)      // helper kept for diagnostics
+*/
+
 function clearObstacles(obstacles) {
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
@@ -16,107 +26,108 @@ function clearObstacles(obstacles) {
   obstacles.length = 0;
 }
 
-/**
- * Return a rect for 'element' relative to the provided 'container'.
- * Using getBoundingClientRect ensures we account for camera transforms.
- */
-function getRelativeRect(element, container) {
-  const elRect = element.getBoundingClientRect();
-  const contRect = container.getBoundingClientRect();
-  return {
-    left: elRect.left - contRect.left,
-    top: elRect.top - contRect.top,
-    right: elRect.right - contRect.left,
-    bottom: elRect.bottom - contRect.top,
-    width: elRect.width,
-    height: elRect.height,
-  };
-}
-
-/**
- * Axis-aligned rectangle intersection test.
- * Tolerance expands/shrinks the boxes (positive tolerance = more permissive).
- */
-function rectsIntersect(a, b, tolerance = 0) {
+function rectsIntersectWorld(a, b, tolerance = 0) {
   return !(
-    a.left + a.width - tolerance <= b.left ||
-    a.left + tolerance >= b.left + b.width ||
-    a.top + a.height - tolerance <= b.top ||
-    a.top + tolerance >= b.top + b.height
+    a.x + a.width - tolerance <= b.x ||
+    a.x + tolerance >= b.x + b.width ||
+    a.y + a.height - tolerance <= b.y ||
+    a.y + tolerance >= b.y + b.height
   );
 }
 
-function checkCollision(playerElem, obstacleElem, containerElem, tolerance = 0) {
-  if (!playerElem || !obstacleElem || !containerElem) return false;
-  if (obstacleElem.classList.contains("empty-block")) return false;
+/**
+ * checkCollisionWorld(playerObj, obstacleObj, tolerance = 0)
+ * Uses AABB (axis-aligned bounding box) in world coordinates.
+ */
+function checkCollisionWorld(playerObj, obstacleObj, tolerance = 0) {
+  if (!playerObj || !obstacleObj) return false;
+  if (obstacleObj.type === "empty") return false;
 
-  const p = getRelativeRect(playerElem, containerElem);
-  const o = getRelativeRect(obstacleElem, containerElem);
+  // Build rects
+  const p = {
+    x: playerObj.x,
+    y: playerObj.y,
+    width: playerObj.width,
+    height: playerObj.height,
+  };
 
-  // Adjust obstacle rect for spike orientation (shrinking toward tip so collisions feel accurate)
-  let obstacleRect = { ...o };
+  // For obstacles, if width/height missing, assume defaults
+  const o = {
+    x: obstacleObj.x,
+    y: obstacleObj.y,
+    width: obstacleObj.width || (obstacleObj.type === "platform" ? 45 : 30),
+    height:
+      obstacleObj.height ||
+      (obstacleObj.type === "teleporter"
+        ? 60
+        : obstacleObj.type === "finish"
+          ? 350
+          : 30),
+  };
 
-  if (obstacleElem.classList.contains("spike")) {
-    const transform = obstacleElem.style.transform || "";
-    const match = transform.match(/rotate\((\d+)\s*deg\)/);
-    if (match) {
-      const rot = parseInt(match[1], 10);
-      // Conservative shrink amount proportional to obstacle size
-      const shrink = Math.max(0, Math.min(6, Math.round(obstacleRect.width * 0.12)));
-      switch (rot) {
-        case 90:
-          obstacleRect.left += shrink;
-          obstacleRect.width = Math.max(1, obstacleRect.width - shrink);
-          break;
-        case 270:
-          obstacleRect.width = Math.max(1, obstacleRect.width - shrink);
-          break;
-        case 180:
-          obstacleRect.top += shrink;
-          obstacleRect.height = Math.max(1, obstacleRect.height - shrink);
-          break;
-        default:
-          obstacleRect.height = Math.max(1, obstacleRect.height - shrink);
-      }
+  // Spike orientation: shrink area conservatively toward tip if rotation specified
+  if (
+    obstacleObj.type === "spike" &&
+    typeof obstacleObj.rotation === "number"
+  ) {
+    const rot = obstacleObj.rotation;
+    const shrink = Math.max(0, Math.min(6, Math.round(o.width * 0.12)));
+    if (rot === 90) {
+      o.x += shrink;
+      o.width = Math.max(1, o.width - shrink);
+    } else if (rot === 270) {
+      o.width = Math.max(1, o.width - shrink);
+    } else if (rot === 180) {
+      o.y += shrink;
+      o.height = Math.max(1, o.height - shrink);
+    } else {
+      o.height = Math.max(1, o.height - shrink);
     }
   }
 
-  return rectsIntersect(p, obstacleRect, tolerance);
+  return rectsIntersectWorld(p, o, tolerance);
 }
 
 /**
- * handlePlatformCollision(playerElem, platformElem, containerElem)
+ * handlePlatformCollisionWorld(playerObj, platformObj, options)
+ * - playerObj: numeric player object (must include velocity in GameState)
+ * - platformObj: numeric platform object
+ *
  * Returns: "death" | "safe" | "none"
+ *
+ * Behavior:
+ *  - Detects side collisions (death) if horizontal overlap while not near top and not jumping
+ *  - Detects safe landing if player is descending (playerVelocity > 0), near top, and enough horizontal overlap.
+ *  - If landing, snaps playerObj.y to platform top (platformObj.y + platformObj.height)
+ *  - Updates GameState accordingly
  */
-function handlePlatformCollision(playerElem, platformElem, containerElem) {
-  if (!playerElem || !platformElem || !containerElem) return "none";
+function handlePlatformCollisionWorld(playerObj, platformObj) {
+  if (!playerObj || !platformObj) return "none";
 
-  const pRect = getRelativeRect(playerElem, containerElem);
-  const platRect = getRelativeRect(platformElem, containerElem);
-
-  const playerWidth = pRect.width;
-  const platformWidth = platRect.width;
-  const platformHeight = platRect.height;
+  // Ensure defaults
+  const pW = playerObj.width || 30;
+  const pH = playerObj.height || 30;
+  const platW = platformObj.width || 45;
+  const platH = platformObj.height || 45;
 
   const horizontalOverlap =
-    Math.min(pRect.left + playerWidth, platRect.left + platformWidth) -
-    Math.max(pRect.left, platRect.left);
+    Math.min(playerObj.x + pW, platformObj.x + platW) -
+    Math.max(playerObj.x, platformObj.x);
 
   const verticalOverlap =
-    Math.min(pRect.top + pRect.height, platRect.top + platformHeight) -
-    Math.max(pRect.top, platRect.top);
+    Math.min(playerObj.y + pH, platformObj.y + platH) -
+    Math.max(playerObj.y, platformObj.y);
 
-  const horizontalCollision = horizontalOverlap / Math.max(1, playerWidth);
+  const horizontalCollision = horizontalOverlap / Math.max(1, pW);
 
   const state = GameState.getState();
 
-  // Distance between player's bottom (y from top of container) and platform top
-  const playerBottomY = pRect.top + pRect.height;
-  const platTopY = platRect.top;
+  // Distance between player's bottom (y) + height and platform top (y)
+  const playerBottomY = playerObj.y + pH; // player's top in top-origin? careful: using bottom-based world coords
+  const platTopY = platformObj.y + platH;
+  // nearTopDelta = absolute difference between player's top (playerBottomY) and platform top (platTopY)
   const nearTopDelta = Math.abs(playerBottomY - platTopY);
 
-  // Side collision detection (prioritise death) — similar to C++ logic:
-  // If there's a large horizontal overlap while not close to the top and player isn't jumping => side hit
   if (
     horizontalCollision > 0.2 &&
     verticalOverlap > 5 &&
@@ -126,31 +137,16 @@ function handlePlatformCollision(playerElem, platformElem, containerElem) {
     return "death";
   }
 
-  // Safe landing detection: player moving down (positive playerVelocity in our GameState),
-  // near the top of the platform, and with sufficient horizontal overlap.
+  // landing: playerVelocity > 0 means moving down in this project (we kept this convention)
   if (
     state.playerVelocity > 0 &&
     nearTopDelta < 10 &&
     horizontalCollision > 0.3
   ) {
-    // We need to set player.style.bottom in the same coordinate system used by the renderer:
-    // Many game UIs use style.bottom (pixels from bottom of container). Compute that:
-    const containerHeight = containerElem.getBoundingClientRect().height;
-
-    // If platformElem has a style.bottom set, prefer it (consistent with existing level parsing),
-    // otherwise compute bottom from the platform's rect.
-    let platBottomStyle = parseFloat(platformElem.style.bottom);
-    if (!Number.isFinite(platBottomStyle)) {
-      // bottom = containerHeight - (platRect.top + platformHeight)
-      platBottomStyle = Math.round(containerHeight - (platRect.top + platformHeight));
-    }
-
-    // Snap player's bottom to sit on top of platform:
-    // playerBottomStyle = platformBottomStyle + platformHeight
-    let snapBottom = platBottomStyle + platformHeight;
-    snapBottom = Math.round(snapBottom); // round to integer pixels to avoid tiny gaps
-
-    playerElem.style.bottom = `${snapBottom}px`;
+    // Snap player's y so that player's bottom sits at platform top minus player height
+    // Our world y is bottom-based; platform top is platformObj.y + platH
+    const snapY = platformObj.y + platH - pH;
+    playerObj.y = Math.round(snapY);
 
     GameState.setState({
       isOnPlatform: true,
@@ -167,6 +163,7 @@ function handlePlatformCollision(playerElem, platformElem, containerElem) {
 
 /**
  * Computes an object with the player's style-based box relative to the container.
+ * Kept for diagnostics; expects element and container.
  */
 function getStyleBoxRelativeToContainer(elem, container) {
   const contRect = container.getBoundingClientRect();
@@ -175,7 +172,6 @@ function getStyleBoxRelativeToContainer(elem, container) {
   const styleBottom = parseFloat(elem.style.bottom) || 0;
   const width = elem.getBoundingClientRect().width || 30;
   const height = elem.getBoundingClientRect().height || 30;
-  // Convert bottom to top-based coordinates like getBoundingClientRect provides
   const top = contH - styleBottom - height;
   return {
     left: styleLeft,
@@ -187,8 +183,7 @@ function getStyleBoxRelativeToContainer(elem, container) {
 
 export {
   clearObstacles,
-  getRelativeRect,
-  checkCollision,
-  handlePlatformCollision,
+  checkCollisionWorld,
+  handlePlatformCollisionWorld,
   getStyleBoxRelativeToContainer,
 };

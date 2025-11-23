@@ -26,7 +26,7 @@ export const COLOR_STEPS = [
 ];
 
 export const CONSTANTS = {
-  COLUMN_WIDTH: 40, // Width of each column in the level matrix
+  COLUMN_WIDTH: 45, // Width of each column in the level matrix
   GROUND_HEIGHT: 50, // Height of the ground from bottom of container
   INITIAL_SPACE: 740, // Initial empty space before level starts (IMP)
 };
