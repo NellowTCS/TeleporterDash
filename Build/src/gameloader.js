@@ -113,6 +113,7 @@ function createPlayerModel(existingElement) {
     height: PLAYER_HEIGHT,
     rotation: 0,
     element: el,
+    prevY: undefined, // used for tunneling checks
   };
   return p;
 }
@@ -412,6 +413,7 @@ function updateGame() {
   // Player physics (world)
   const newVelocity = state.playerVelocity + gravity * deltaTime;
   const currentBottom = player.y;
+  const prevBottom = currentBottom; // store previous bottom for tunneling checks
   let newBottom = currentBottom - newVelocity * deltaTime;
 
   if (newBottom <= CONSTANTS.GROUND_HEIGHT) {
@@ -427,6 +429,8 @@ function updateGame() {
     });
   }
 
+  // store previous bottom on player model for physics engine to detect tunneling
+  player.prevY = prevBottom;
   player.y = newBottom;
   player.x = PLAYER_X; // keep fixed
 
@@ -580,6 +584,7 @@ async function gameOver() {
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
   } else {
     player.y = 50;
+    player.prevY = undefined;
     GameState.setState({ playerVelocity: 0, rotation: 0 });
     createParticles("#ff00ff");
   }
@@ -616,6 +621,7 @@ async function restartGame() {
   // Reset player world model
   player.x = PLAYER_X;
   player.y = CONSTANTS.GROUND_HEIGHT || 50;
+  player.prevY = undefined;
   player.rotation = 0;
   renderPlayer(player);
 

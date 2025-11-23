@@ -27,6 +27,7 @@ function clearObstacles(obstacles) {
 }
 
 function rectsIntersectWorld(a, b, tolerance = 0) {
+  // Using bottom-left origin: a.y is bottom, a.y + a.height is top.
   return !(
     a.x + a.width - tolerance <= b.x ||
     a.x + tolerance >= b.x + b.width ||
@@ -43,7 +44,7 @@ function checkCollisionWorld(playerObj, obstacleObj, tolerance = 0) {
   if (!playerObj || !obstacleObj) return false;
   if (obstacleObj.type === "empty") return false;
 
-  // Build rects
+  // Build rects (bottom-left origin)
   const p = {
     x: playerObj.x,
     y: playerObj.y,
@@ -98,8 +99,12 @@ function checkCollisionWorld(playerObj, obstacleObj, tolerance = 0) {
  * Behavior:
  *  - Detects side collisions (death) if horizontal overlap while not near top and not jumping
  *  - Detects safe landing if player is descending (playerVelocity > 0), near top, and enough horizontal overlap.
- *  - If landing, snaps playerObj.y to platform top (platformObj.y + platformObj.height)
+ *  - If landing, snaps playerObj.y so the player's bottom sits at platform top (platformObj.y + platformObj.height)
  *  - Updates GameState accordingly
+ *
+ * Notes:
+ *  - Coordinates use bottom-left origin (playerObj.y is player's bottom).
+ *  - To prevent phasing/tunneling, this function checks playerObj.prevY if present (previous bottom)
  */
 function handlePlatformCollisionWorld(playerObj, platformObj) {
   if (!playerObj || !platformObj) return "none";
@@ -122,12 +127,14 @@ function handlePlatformCollisionWorld(playerObj, platformObj) {
 
   const state = GameState.getState();
 
-  // Distance between player's bottom (y) + height and platform top (y)
-  const playerBottomY = playerObj.y + pH; // player's top in top-origin? careful: using bottom-based world coords
+  // Player bottom (y) and platform top (y + height)
+  const playerBottomY = playerObj.y; // bottom-based coordinate
   const platTopY = platformObj.y + platH;
-  // nearTopDelta = absolute difference between player's top (playerBottomY) and platform top (platTopY)
+  // distance between player's bottom and platform top
   const nearTopDelta = Math.abs(playerBottomY - platTopY);
 
+  // If the player is overlapping vertically significantly while not near the top and not jumping,
+  // treat it as a side collision leading to death.
   if (
     horizontalCollision > 0.2 &&
     verticalOverlap > 5 &&
@@ -137,16 +144,38 @@ function handlePlatformCollisionWorld(playerObj, platformObj) {
     return "death";
   }
 
-  // landing: playerVelocity > 0 means moving down in this project (we kept this convention)
+  // Tunneling protection: if player had a previous bottom (prevY) above the platform top
+  // and now is below the platform top (crossed through), and was moving downward,
+  // snap the player to platform top (landing).
+  const prevBottom = typeof playerObj.prevY === "number" ? playerObj.prevY : undefined;
+  if (
+    typeof prevBottom === "number" &&
+    prevBottom > platTopY + 0.5 && // previously clearly above platform
+    playerBottomY < platTopY - 0.5 && // now below platform top -> tunneled through
+    state.playerVelocity > 0 && // was falling
+    horizontalCollision > 0.25
+  ) {
+    playerObj.y = Math.round(platTopY); // align player's bottom with platform top
+    playerObj.prevY = undefined;
+    GameState.setState({
+      isOnPlatform: true,
+      isJumping: false,
+      doubleJumpAvailable: true,
+      playerVelocity: 0,
+    });
+    return "safe";
+  }
+
+  // landing: state.playerVelocity > 0 means moving down in this project
   if (
     state.playerVelocity > 0 &&
     nearTopDelta < 10 &&
     horizontalCollision > 0.3
   ) {
-    // Snap player's y so that player's bottom sits at platform top minus player height
-    // Our world y is bottom-based; platform top is platformObj.y + platH
-    const snapY = platformObj.y + platH - pH;
+    // Snap player's bottom to platform top
+    const snapY = platformObj.y + platH;
     playerObj.y = Math.round(snapY);
+    playerObj.prevY = undefined;
 
     GameState.setState({
       isOnPlatform: true,
