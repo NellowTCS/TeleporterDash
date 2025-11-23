@@ -99,7 +99,7 @@ function createObstacleFromMatrix(type, row, spawnX) {
     obstacleObj.height = 60;
   } else if (blockType === 1) {
     obstacleObj.type = "platform";
-    obstacleObj.width = cellWidth + 5;
+    obstacleObj.width = cellWidth + 3;
     obstacleObj.height = rowSpacing;
   } else {
     obstacleObj.type = "empty";
