@@ -1,12 +1,12 @@
-import { LevelEditorController } from "./TDEditor/levelEditorController.js";
+import { TDEditorController } from "./TDEditor/TDEditorController.js";
 
 // Initialize the level editor when the DOM is loaded
 let editorController = null;
 
 // Initialize the application
-async function initializeLevelEditor() {
+async function initializeTDEditor() {
   try {
-    editorController = new LevelEditorController();
+    editorController = new TDEditorController();
   } catch (error) {
     console.error("Failed to initialize Level Editor:", error);
   }
@@ -14,9 +14,9 @@ async function initializeLevelEditor() {
 
 // Start the application
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeLevelEditor);
+  document.addEventListener("DOMContentLoaded", initializeTDEditor);
 } else {
-  initializeLevelEditor();
+  initializeTDEditor();
 }
 
 // Clean up on page unload

@@ -1,6 +1,6 @@
 import { GameState } from "../Utilities/gameState";
 import { AudioManager } from "../Utilities/audioManager";
-import { toggleGameState } from "../gameloader";
+import { toggleGameState } from "../TDLoader";
 
 const jumpForce = -800; // Initial upward velocity when jumping (pixels/second)
 let jumpBufferTime = 0; // milliseconds

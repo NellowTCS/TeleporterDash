@@ -59,7 +59,7 @@ export class TestManager {
 
   openTestWindow() {
     // Open the test page in a new window
-    window.open("./gameloader.html?test=true&levelId=currentTest", "_blank");
+    window.open("./TDLoader.html?test=true&levelId=currentTest", "_blank");
   }
 
   setupEventListeners() {

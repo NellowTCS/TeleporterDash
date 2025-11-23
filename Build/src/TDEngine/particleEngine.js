@@ -1,5 +1,5 @@
 import { SettingsManager } from "./settingsManager";
-import { particles, player, gameContainer } from "../gameloader.js";
+import { particles, player, gameContainer } from "../TDLoader.js";
 
 function clearParticles(particles) {
   // Clear particles array

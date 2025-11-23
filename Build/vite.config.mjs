@@ -45,9 +45,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        gameloader: path.resolve(__dirname, 'gameloader.html'),
-        leveleditor: path.resolve(__dirname, 'leveleditor.html'),
-        levelstore: path.resolve(__dirname, 'levelstore.html'),
+        TDLoader: path.resolve(__dirname, 'TDLoader.html'),
+        TDEditor: path.resolve(__dirname, 'TDEditor.html'),
+        TDStore: path.resolve(__dirname, 'TDStore.html'),
       }
     },
   },

@@ -22,7 +22,7 @@ import { initializeColorPickers } from "./editorColorPicker.js";
 // Import tools initialization function
 import { initializeEditorTools } from "./editorTools.js";
 
-export class LevelEditorController {
+export class TDEditorController {
   constructor() {
     this.managers = {
       importExport: null,
@@ -36,7 +36,7 @@ export class LevelEditorController {
 
   async initialize() {
     const perfMonitor = new PerformanceMonitor();
-    perfMonitor.startTimer("levelEditorInitialization");
+    perfMonitor.startTimer("TDEditorInitialization");
 
     try {
       // Wait for DOM to be ready
@@ -85,7 +85,7 @@ export class LevelEditorController {
       // Setup global functions for HTML onclick handlers
       this.setupGlobalFunctions();
 
-      const initTime = perfMonitor.endTimer("levelEditorInitialization", true);
+      const initTime = perfMonitor.endTimer("TDEditorInitialization", true);
       console.log(
         `✅ Level Editor initialized successfully in ${initTime.toFixed(2)}ms`,
       );

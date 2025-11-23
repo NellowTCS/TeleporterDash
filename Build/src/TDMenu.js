@@ -68,12 +68,12 @@ function startGame() {
   if (currentLevelType === "built-in" && window.builtInLevels) {
     // @ts-ignore
     const level = window.builtInLevels[currentLevelIndex];
-    window.location.href = `gameloader.html?level=${level.number}`;
+    window.location.href = `TDLoader.html?level=${level.number}`;
     // @ts-ignore
   } else if (currentLevelType === "online" && window.onlineLevels) {
     // @ts-ignore
     const level = window.onlineLevels[currentLevelIndex];
-    window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
+    window.location.href = `TDLoader.html?online=true&levelFile=${encodeURIComponent(
       level.filename,
     )}`;
   }
@@ -83,8 +83,8 @@ function startGame() {
   );
 }
 
-function openLevelEditor() {
-  window.location.href = "leveleditor.html";
+function openTDEditor() {
+  window.location.href = "TDEditor.html";
 }
 
 function showCredits() {
@@ -97,8 +97,8 @@ function showCredits() {
 // @ts-ignore
 window.showCredits = showCredits;
 
-function levelStore() {
-  window.location.href = "levelstore.html";
+function TDStore() {
+  window.location.href = "TDStore.html";
 }
 
 // Settings Functions
@@ -270,9 +270,10 @@ async function updateLevelDisplay() {
       if (!window.onlineLevels || !Array.isArray(window.onlineLevels)) {
         throw new Error("No online levels data available");
       }
-      // @ts-ignore
+      
       if (
         currentLevelIndex < 0 ||
+        // @ts-ignore
         currentLevelIndex >= window.onlineLevels.length
       ) {
         throw new Error(`Invalid level index: ${currentLevelIndex}`);
@@ -412,9 +413,9 @@ document.addEventListener("DOMContentLoaded", () => DatabaseManager.initDB());
 // @ts-ignore
 window.startGame = startGame;
 // @ts-ignore
-window.openLevelEditor = openLevelEditor;
+window.openTDEditor = openTDEditor;
 // @ts-ignore
-window.levelStore = levelStore;
+window.TDStore = TDStore;
 // @ts-ignore
 window.updateVolumeLabel = updateVolumeLabel;
 // @ts-ignore

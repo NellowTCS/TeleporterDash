@@ -423,7 +423,7 @@ window.onload = async () => {
   }
 };
 function startGame(levelFilename) {
-  window.location.href = `gameloader.html?online=true&levelFile=${encodeURIComponent(
+  window.location.href = `TDLoader.html?online=true&levelFile=${encodeURIComponent(
     levelFilename,
   )}`;
 }
