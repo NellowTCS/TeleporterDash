@@ -388,14 +388,16 @@ function updateGame() {
     : baseSpeed;
   const frameSpeed = currentSpeed * deltaTime;
 
+  // Cache container width once per frame to avoid layout read thrash
+  const spawnX = gameContainer ? gameContainer.offsetWidth : 800;
+
   // Create new obstacles when needed (use world spawnX = gameContainer.offsetWidth)
-  const spawnX = gameContainer.offsetWidth;
   if (
     state.levelMatrix &&
     state.levelMatrix.length > 0 &&
     state.currentColumn < state.levelMatrix[0].length &&
     (obstacles.length === 0 ||
-      gameContainer.offsetWidth - obstacles[obstacles.length - 1]?.x >
+      spawnX - obstacles[obstacles.length - 1]?.x >
         CONSTANTS.COLUMN_WIDTH)
   ) {
     for (let row = 0; row < state.levelMatrix.length; row++) {
@@ -500,9 +502,22 @@ function updateGame() {
     }
   }
 
-  // Particles update
+  // Particles update (use transform-only updates and cache numeric positions)
   for (let i = particles.length - 1; i >= 0; i--) {
     const particle = particles[i];
+
+    // Initialize numeric position if not present (one layout read only)
+    if (typeof particle.x !== "number" || typeof particle.y !== "number") {
+      // fall back to reading style values only on first frame for this particle
+      const el = particle.element;
+      const left = parseFloat(el.style.left || "0");
+      const top = parseFloat(el.style.top || "0");
+      // convert top to bottom-origin y (we are using bottom-origin elsewhere)
+      // but since we will use transform for final rendering, just use the top read as starting y
+      particle.x = isNaN(left) ? 0 : left;
+      particle.y = isNaN(top) ? 0 : top;
+    }
+
     particle.vy += 300 * deltaTime;
     particle.life -= 1.2 * deltaTime;
     if (particle.life <= 0) {
@@ -510,12 +525,17 @@ function updateGame() {
       particles.splice(i, 1);
       continue;
     }
-    particle.element.style.left = `${Math.round(parseFloat(particle.element.style.left || 0) + particle.vx * deltaTime)}px`;
-    particle.element.style.top = `${Math.round(parseFloat(particle.element.style.top || 0) + particle.vy * deltaTime)}px`;
+
+    // update numeric positions
+    particle.x += particle.vx * deltaTime;
+    particle.y += particle.vy * deltaTime;
+
+    // set element transform for GPU compositing
+    particle.element.style.transform = `translate3d(${Math.round(particle.x)}px, ${Math.round(particle.y)}px, 0)`;
     particle.element.style.opacity = particle.life;
   }
 
-  // Render pass
+  // Render pass using GPU transforms
   renderPlayer(player);
   renderObstacles(obstacles);
 

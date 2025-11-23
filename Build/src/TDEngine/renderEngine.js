@@ -30,7 +30,8 @@ function ensureElementBase(el) {
     cam.appendChild(el);
   }
   el.style.position = "absolute";
-  el.style.willChange = "transform, left, bottom";
+  // Use transform-only updates for movement and rotation to keep rendering on the compositor
+  el.style.willChange = "transform";
   el.style.boxSizing = "border-box";
   el.style.margin = "0";
   el.style.padding = "0";
@@ -39,6 +40,10 @@ function ensureElementBase(el) {
   el.style.transformOrigin = "center center";
 }
 
+/**
+ * Creates or returns the player DOM element.
+ * Important: we set element left/bottom to 0 and use transform for subsequent movement.
+ */
 function createPlayerElement(existingElement) {
   const cam = _camera_container();
   if (existingElement) {
@@ -46,7 +51,9 @@ function createPlayerElement(existingElement) {
       cam.appendChild(existingElement);
     }
     existingElement.style.position = "absolute";
-    existingElement.style.willChange = "transform, left, bottom";
+    existingElement.style.left = "0px";
+    existingElement.style.bottom = "0px";
+    existingElement.style.willChange = "transform";
     existingElement.style.boxSizing = "border-box";
     existingElement.style.margin = "0";
     return existingElement;
@@ -57,10 +64,12 @@ function createPlayerElement(existingElement) {
   el.style.position = "absolute";
   el.style.width = "30px";
   el.style.height = "30px";
-  el.style.left = "100px";
-  el.style.bottom = "50px";
+  // anchor to bottom-left origin and use transform to position
+  el.style.left = "0px";
+  el.style.bottom = "0px";
   el.style.boxSizing = "border-box";
   el.style.margin = "0";
+  el.style.willChange = "transform";
   cam.appendChild(el);
   return el;
 }
@@ -69,6 +78,8 @@ function createPlayerElement(existingElement) {
  * Create or ensure DOM element for an obstacleObj.
  * obstacleObj must contain: type, width, height, color?, rotation?
  * createObstacleElement will attach the created element to camera container and set .element
+ *
+ * Elements are anchored at left:0 bottom:0 and positioned using transform to avoid layout thrash.
  */
 function createObstacleElement(obstacleObj) {
   const cam = _camera_container();
@@ -80,7 +91,9 @@ function createObstacleElement(obstacleObj) {
       cam.appendChild(el);
     }
     el.style.position = "absolute";
-    el.style.willChange = "left, bottom, transform";
+    el.style.left = "0px";
+    el.style.bottom = "0px";
+    el.style.willChange = "transform";
     el.style.boxSizing = "border-box";
     el.style.margin = "0";
     return el;
@@ -94,7 +107,9 @@ function createObstacleElement(obstacleObj) {
 
   let el = document.createElement("div");
   el.style.position = "absolute";
-  el.style.willChange = "left, bottom, transform";
+  el.style.left = "0px";
+  el.style.bottom = "0px";
+  el.style.willChange = "transform";
   el.style.boxSizing = "border-box";
   el.style.margin = "0";
   el.style.padding = "0";
@@ -117,6 +132,7 @@ function createObstacleElement(obstacleObj) {
       el.style.borderLeft = `${half}px solid transparent`;
       el.style.borderRight = `${half}px solid transparent`;
       el.style.borderBottom = `${h}px solid ${color || "red"}`;
+      // Keep the origin at center bottom so rotation behaves the same
       el.style.transformOrigin = "center bottom";
       break;
     }
@@ -146,56 +162,59 @@ function createObstacleElement(obstacleObj) {
       break;
   }
 
-  if (rotation) {
-    el.style.transform = `rotate(${rotation}deg)`;
-  }
-
+  // We do not set transform here. render functions will set transform each frame (translation + rotation).
   cam.appendChild(el);
   obstacleObj.element = el;
   return el;
 }
 
+/**
+ * Render player using GPU compositing transform only.
+ * We use bottom-origin coordinates in the world. To map to CSS transform,
+ * elements are anchored at left:0,bottom:0. To move up in world-space we translate by -y in Y.
+ *
+ * transform = translate3d(x, -y, 0) rotate(deg)
+ */
 function renderPlayer(playerObj) {
   if (!playerObj || !playerObj.element) return;
   const el = playerObj.element;
-  el.style.left = `${Math.round(playerObj.x)}px`;
-  el.style.bottom = `${Math.round(playerObj.y)}px`;
-  if (playerObj.rotation) {
-    el.style.transform = `rotate(${playerObj.rotation}deg)`;
-  } else {
-    el.style.transform = `rotate(0deg)`;
-  }
+  const tx = Math.round(playerObj.x || 0);
+  // world y increases upward; CSS translate Y positive moves down, so use -y
+  const ty = Math.round(-(playerObj.y || 0));
+  const rotation = playerObj.rotation || 0;
+  // combine translation and rotation into a single transform to avoid layout thrash
+  el.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rotation}deg)`;
 }
 
+/**
+ * Render obstacles with GPU transforms. Spike handling preserved but positioned via transform.
+ */
 function renderObstacles(obstaclesArray) {
   if (!Array.isArray(obstaclesArray)) return;
   for (const o of obstaclesArray) {
     if (!o || !o.element) continue;
-    // Spike: center the zero-size triangle so the base spans [o.x, o.x + o.width]
+    const el = o.element;
+    const rot = typeof o.rotation === "number" ? o.rotation : 0;
     if (o.type === "spike") {
-      const el = o.element;
       const w = Math.round(o.width || 30);
       const half = Math.round(w / 2);
-      // Place the zero-size element at : left = o.x + half so its borders span the cell
-      el.style.left = `${Math.round(o.x + half)}px`;
-      el.style.bottom = `${Math.round(o.y)}px`;
-      if (typeof o.rotation === "number") {
-        el.style.transform = `rotate(${o.rotation}deg)`;
-      }
+      // zero-size triangle is created at element origin; place it so the borders span [o.x, o.x + o.width]
+      const tx = Math.round(o.x + half);
+      const ty = Math.round(-o.y);
+      el.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rot}deg)`;
       continue;
     }
 
-    // Normal rectangular elements:
-    o.element.style.left = `${Math.round(o.x)}px`;
-    o.element.style.bottom = `${Math.round(o.y)}px`;
-    if (typeof o.rotation === "number") {
-      o.element.style.transform = `rotate(${o.rotation}deg)`;
-    }
+    const tx = Math.round(o.x || 0);
+    const ty = Math.round(-(o.y || 0));
+    el.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rot}deg)`;
   }
 }
 
 function setCamera(offsetY) {
   if (!_camera_container()) return;
+  // Camera currently expects offsetY positive to move camera downwards (or as used elsewhere).
+  // Keep behavior the same; offsetY is in px.
   _cameraContainer.style.transform = `translateY(${Math.round(offsetY)}px)`;
 }
 
