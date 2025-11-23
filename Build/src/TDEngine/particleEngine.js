@@ -1,60 +1,93 @@
-import { SettingsManager } from "./settingsManager";
-import { particles, player, gameContainer } from "../TDLoader.js";
+import { SettingsManager } from "./settingsManager.js";
 
-function clearParticles(particles) {
-  // Clear particles array
-  particles = [];
+function _getContainer(container) {
+  if (container) return container;
+  const cam = document.querySelector("#cameraContainer");
+  return cam || document.body;
 }
 
 /**
- * Initializes particles array if it doesn't exist
- * @param {string} color - Color of particles (e.g., '#ff0000' for red)
+ * createParticles(color, playerModel, container)
+ * - color: CSS color for particles
+ * - playerModel: numeric player object { x, y, width, height } (world-space, bottom-origin)
+ * - container: optional DOM element to attach particles to (camera container recommended)
+ *
+ * Returns an array of particle objects. The caller should push those into its particles list and update them each frame.
  */
-function createParticles(color) {
-  // Check if visual effects are enabled
-  if (!SettingsManager.current.visualEffects) return;
+function createParticles(color, playerModel, container) {
+  // Respect settings
+  if (!SettingsManager || !SettingsManager.current || !SettingsManager.current.visualEffects) {
+    return [];
+  }
 
-  if (!particles) clearParticles();
+  const cam = _getContainer(container);
 
-  // Create 10 particles
+  const out = [];
+  // Create 10 particles (same as original)
   for (let i = 0; i < 10; i++) {
-    const particle = document.createElement("div");
-    particle.className = "particle";
-    particle.style.position = "absolute";
-    particle.style.width = "5px";
-    particle.style.height = "5px";
-    particle.style.backgroundColor = color;
-    particle.style.left = parseInt(player.style.left) + 15 + "px";
-    particle.style.bottom = parseInt(player.style.bottom) + 15 + "px";
-    particle.style.borderRadius = "50%";
-    particle.style.zIndex = "1000";
+    const el = document.createElement("div");
+    el.className = "particle";
+    el.style.position = "absolute";
+    el.style.width = "5px";
+    el.style.height = "5px";
+    el.style.backgroundColor = color;
+    el.style.left = "0px";
+    el.style.bottom = "0px";
+    el.style.borderRadius = "50%";
+    el.style.zIndex = "1000";
+    el.style.willChange = "transform, opacity";
 
-    gameContainer.appendChild(particle);
+    cam.appendChild(el);
 
+    // Compute initial numeric position (world-space, bottom-origin)
+    // Place roughly at player's center
+    const pX = (playerModel && typeof playerModel.x === "number")
+      ? Math.round(playerModel.x + (playerModel.width || 30) / 2 - 2.5)
+      : 0;
+    const pY = (playerModel && typeof playerModel.y === "number")
+      ? Math.round(playerModel.y + (playerModel.height || 30) / 2 - 2.5)
+      : 0;
+
+    // Random velocity: keep magnitude similar to previous implementation (pixels/sec)
     const angle = Math.random() * Math.PI * 2;
-    const speed = (Math.random() * 5 + 2) * 60; // Convert to pixels/second (multiply by 60 for 60 FPS equivalent)
+    const speed = (Math.random() * 5 + 2) * 60; // px/sec
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed - 120; // initial upward bias (negative vy moves up in world coords)
 
-    particles.push({
-      element: particle,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 120, // Convert initial upward velocity to pixels/second
+    // Initialize transform so it renders in the right spot immediately
+    // We follow renderer convention: translate3d(worldX, -worldY, 0)
+    el.style.transform = `translate3d(${pX}px, ${-pY}px, 0)`;
+
+    out.push({
+      element: el,
+      x: pX, // world X in pixels (used by update loop)
+      y: pY, // world Y in pixels (bottom-origin)
+      vx,
+      vy,
       life: 1,
     });
   }
+
+  return out;
 }
 
 /**
- * Cleans up all particle effects
- * Called during game restart and level completion
+ * cleanupParticles(particlesArray)
+ * - Removes provided particle elements from DOM and does light cleanup.
+ * - Caller should clear its own particles array after calling this.
  */
-function cleanupParticles() {
-  // Remove all particle elements from DOM
-  particles.forEach((particle) => {
-    if (particle.element && particle.element.parentNode) {
-      particle.element.remove();
+function cleanupParticles(particlesArray) {
+  if (!Array.isArray(particlesArray)) return;
+  for (let i = 0; i < particlesArray.length; i++) {
+    const p = particlesArray[i];
+    try {
+      if (p && p.element && p.element.parentNode) {
+        p.element.remove();
+      }
+    } catch (e) {
+      // ignore
     }
-  });
-  clearParticles();
+  }
 }
 
 export { createParticles, cleanupParticles };

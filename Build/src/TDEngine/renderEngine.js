@@ -3,10 +3,14 @@ let _cameraContainer = null;
 
 function init(gameContainerElement, cameraContainerElement) {
   _gameContainer = gameContainerElement;
-  _cameraContainer = cameraContainerElement || document.querySelector("#cameraContainer");
+  _camera_container_set(cameraContainerElement || document.querySelector("#cameraContainer"));
   if (!_camera_container()) {
     console.warn("renderEngine: no camera container found, defaulting to document.body");
   }
+}
+
+function _camera_container_set(el) {
+  if (el) _cameraContainer = el;
 }
 
 function _camera_container() {
@@ -56,6 +60,8 @@ function createPlayerElement(existingElement) {
     existingElement.style.willChange = "transform";
     existingElement.style.boxSizing = "border-box";
     existingElement.style.margin = "0";
+    // ensure transform-origin set to center so rotation behaves nicely
+    existingElement.style.transformOrigin = existingElement.style.transformOrigin || "center center";
     return existingElement;
   }
 
@@ -70,8 +76,41 @@ function createPlayerElement(existingElement) {
   el.style.boxSizing = "border-box";
   el.style.margin = "0";
   el.style.willChange = "transform";
+  el.style.transformOrigin = "center center";
   cam.appendChild(el);
   return el;
+}
+
+/**
+ * Helper: create a teleporter glow child (radial) that won't visually "mirror" when rotated.
+ * Returns the glow element (appended to parent).
+ */
+function _createTeleporterGlow(parentEl, color) {
+  // If already present, update and return it
+  const existing = parentEl.querySelector(".teleporter-glow");
+  if (existing) {
+    if (color) existing.style.setProperty("--teleporter-glow-color", color);
+    return existing;
+  }
+
+  const glow = document.createElement("div");
+  glow.className = "teleporter-glow";
+  // fill parent. We use absolute positioning so the glow stays aligned with teleporter bounds.
+  glow.style.position = "absolute";
+  glow.style.left = "0";
+  glow.style.bottom = "0";
+  glow.style.width = "100%";
+  glow.style.height = "100%";
+  glow.style.pointerEvents = "none";
+  glow.style.zIndex = "0";
+  // Use a radial gradient (centered) so rotation does not produce mirrored-looking streaks.
+  const c = color || "#ff00ff";
+  glow.style.background = `radial-gradient(circle at 50% 50%, ${c} 0%, rgba(0,0,0,0) 60%)`;
+  glow.style.opacity = "0.9";
+  glow.style.borderRadius = "inherit";
+  glow.style.willChange = "transform, opacity";
+  parentEl.appendChild(glow);
+  return glow;
 }
 
 /**
@@ -96,6 +135,8 @@ function createObstacleElement(obstacleObj) {
     el.style.willChange = "transform";
     el.style.boxSizing = "border-box";
     el.style.margin = "0";
+    // ensure transform-origin to center unless spike needs bottom origin
+    el.style.transformOrigin = el.style.transformOrigin || "center center";
     return el;
   }
 
@@ -114,6 +155,8 @@ function createObstacleElement(obstacleObj) {
   el.style.margin = "0";
   el.style.padding = "0";
   el.style.backgroundClip = "padding-box";
+  el.style.borderRadius = "0";
+  el.style.overflow = "visible"; // allow glow to show beyond if needed
 
   switch (type) {
     case "finish":
@@ -132,7 +175,7 @@ function createObstacleElement(obstacleObj) {
       el.style.borderLeft = `${half}px solid transparent`;
       el.style.borderRight = `${half}px solid transparent`;
       el.style.borderBottom = `${h}px solid ${color || "red"}`;
-      // Keep the origin at center bottom so rotation behaves the same
+      // Spike visually should pivot around bottom center for rotation
       el.style.transformOrigin = "center bottom";
       break;
     }
@@ -141,9 +184,14 @@ function createObstacleElement(obstacleObj) {
       el.className = "teleporter";
       el.style.width = `${w}px`;
       el.style.height = `${h}px`;
+      // Instead of relying on a linear gradient that flips with rotation we create a radial glow child.
       el.style.background = obstacleObj.background || "linear-gradient(to right, #ff00ff, #8c00ff)";
       el.style.borderRadius = "15px";
-      el.style.animation = "glow 1s infinite alternate";
+      el.style.position = "absolute";
+      el.style.overflow = "visible";
+      // create an inner glow that is radial and symmetric so rotating the teleporter won't mirror the glow
+      _createTeleporterGlow(el, obstacleObj.color || "#ff00ff");
+      // teleporter decoration on top can remain via background, glow beneath via child
       break;
 
     case "platform":
@@ -174,13 +222,26 @@ function createObstacleElement(obstacleObj) {
  * elements are anchored at left:0,bottom:0. To move up in world-space we translate by -y in Y.
  *
  * transform = translate3d(x, -y, 0) rotate(deg)
+ *
+ * Note: a runtime-adjustable render offset is supported via:
+ *  - playerObj.renderOffset (per-model)
+ *  - global window.TD_RENDER_PLAYER_OFFSET (tweakable from console)
  */
 function renderPlayer(playerObj) {
   if (!playerObj || !playerObj.element) return;
   const el = playerObj.element;
   const tx = Math.round(playerObj.x || 0);
-  // world y increases upward; CSS translate Y positive moves down, so use -y
-  const ty = Math.round(-(playerObj.y || 0));
+
+  // Resolve offsets safely and unambiguously (fixes operator precedence issues)
+  const modelOffset = typeof playerObj.renderOffset === "number" ? playerObj.renderOffset : 0;
+  // @ts-ignore
+  const globalOffset = typeof window.TD_RENDER_PLAYER_OFFSET === "number" ? window.TD_RENDER_PLAYER_OFFSET : 0;
+
+  // world y increases upward; CSS translate Y positive moves down, so use -y.
+  // Apply model/global offsets as a subtraction to allow lowering the rendered player.
+  const yVal = (playerObj.y || 0) + modelOffset - globalOffset;
+  const ty = Math.round(-yVal);
+
   const rotation = playerObj.rotation || 0;
   // combine translation and rotation into a single transform to avoid layout thrash
   el.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rotation}deg)`;
@@ -205,6 +266,7 @@ function renderObstacles(obstaclesArray) {
       continue;
     }
 
+    // For teleporter and other rectangular obstacles we place by bottom-left (world coords)
     const tx = Math.round(o.x || 0);
     const ty = Math.round(-(o.y || 0));
     el.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rot}deg)`;

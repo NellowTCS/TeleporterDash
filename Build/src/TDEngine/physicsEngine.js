@@ -1,26 +1,26 @@
 import { GameState } from "../Utilities/gameState.js";
 
-/*
- Physics engine operating on numeric world-space objects.
-
- World convention:
-  - Positions are numeric: x (px from left of world), y (px from bottom of game container)
-  - Sizes: width, height in px
-  - Player object: { x, y, width, height, velocityY, rotation, element? }
-  - Obstacle object: { x, y, width, height, type, rotation?, color?, element? }
-
- Exposed functions:
-  - clearObstacles(obstaclesArray)                       // clears DOM and empties array
-  - checkCollisionWorld(playerObj, obstacleObj)          // AABB intersection in world coords (returns boolean)
-  - handlePlatformCollisionWorld(playerObj, platformObj) // platform logic using world coords; mutates playerObj.y and GameState; returns "death"|"safe"|"none"
-  - getStyleBoxRelativeToContainer(elem, container)      // helper kept for diagnostics
-*/
-
 function clearObstacles(obstacles) {
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (o && o.element && o.element.parentNode) {
-      o.element.remove();
+    if (o && o.element) {
+      // If a pooling API is available, return obstacle to pool instead of removing from DOM
+      // @ts-ignore
+      if (window.TDObstaclePool && typeof window.TDObstaclePool.release === "function") {
+        try {
+          // @ts-ignore
+          window.TDObstaclePool.release(o);
+        } catch (e) {
+          // fallback to remove if pool release fails
+          if (o.element && o.element.parentNode) {
+            o.element.remove();
+          }
+        }
+      } else {
+        if (o.element && o.element.parentNode) {
+          o.element.remove();
+        }
+      }
     }
   }
   obstacles.length = 0;

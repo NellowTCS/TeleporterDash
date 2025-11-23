@@ -41,7 +41,7 @@ let playerElement = null; // DOM element exposed as exported 'player'
 // World model objects (used internally by physics + renderer)
 let player = null; // numeric model: { x, y, width, height, rotation, element }
 let obstacles = []; // Array of world obstacle objects (each has .element)
-let particles = []; // Array of active particle effects (DOM-backed)
+let particles = []; // Array of active particle effects (numeric model + element)
 
 // UI / controls
 let restartBtn = null;
@@ -454,6 +454,7 @@ function updateGame() {
     // Remove off-screen obstacles
     if (obs.x < -100) {
       if (obs.element) removeElement(obs.element);
+      // If a pool exists, prefer giving obstacles back to it (clearObstacles will normally be used on restart)
       obstacles.splice(i, 1);
       continue;
     }
@@ -490,8 +491,9 @@ function updateGame() {
           }
 
           GameState.setState({ playerVelocity: 0 });
-          createParticles("#ff00ff");
-          setTimeout(() => createParticles("#ff00ff"), 100);
+          // createParticles now returns created particle objects; push them into local particles
+          particles.push(...createParticles("#ff00ff", player, cameraContainer || gameContainer));
+          setTimeout(() => particles.push(...createParticles("#ff00ff", player, cameraContainer || gameContainer)), 100);
         } else if (obs.type === "platform") {
           const platformCollision = handlePlatformCollisionWorld(player, obs);
           if (platformCollision === "death" && !state.isPracticeMode) {
@@ -502,22 +504,11 @@ function updateGame() {
     }
   }
 
-  // Particles update (use transform-only updates and cache numeric positions)
+  // Particles update (use transform-only updates and numeric positions)
   for (let i = particles.length - 1; i >= 0; i--) {
     const particle = particles[i];
 
-    // Initialize numeric position if not present (one layout read only)
-    if (typeof particle.x !== "number" || typeof particle.y !== "number") {
-      // fall back to reading style values only on first frame for this particle
-      const el = particle.element;
-      const left = parseFloat(el.style.left || "0");
-      const top = parseFloat(el.style.top || "0");
-      // convert top to bottom-origin y (we are using bottom-origin elsewhere)
-      // but since we will use transform for final rendering, just use the top read as starting y
-      particle.x = isNaN(left) ? 0 : left;
-      particle.y = isNaN(top) ? 0 : top;
-    }
-
+    // update velocities (vy positive = falling in world coords, negative = moving up)
     particle.vy += 300 * deltaTime;
     particle.life -= 1.2 * deltaTime;
     if (particle.life <= 0) {
@@ -526,13 +517,16 @@ function updateGame() {
       continue;
     }
 
-    // update numeric positions
+    // update numeric positions (world coords)
     particle.x += particle.vx * deltaTime;
     particle.y += particle.vy * deltaTime;
 
-    // set element transform for GPU compositing
-    particle.element.style.transform = `translate3d(${Math.round(particle.x)}px, ${Math.round(particle.y)}px, 0)`;
-    particle.element.style.opacity = particle.life;
+    // set element transform using renderer convention
+    // transform = translate3d(worldX, -worldY, 0)
+    if (particle.element) {
+      particle.element.style.transform = `translate3d(${Math.round(particle.x)}px, ${Math.round(-particle.y)}px, 0)`;
+      particle.element.style.opacity = particle.life;
+    }
   }
 
   // Render pass using GPU transforms
@@ -582,7 +576,7 @@ async function gameOver() {
     }
 
     // Create particles at player position (relative to cameraContainer)
-    createParticles("#ff0000");
+    particles.push(...createParticles("#ff0000", player, cameraContainer || gameContainer));
 
     if (autoRestartEnabled) {
       setTimeout(() => {
@@ -606,7 +600,7 @@ async function gameOver() {
     player.y = 50;
     player.prevY = undefined;
     GameState.setState({ playerVelocity: 0, rotation: 0 });
-    createParticles("#ff00ff");
+    particles.push(...createParticles("#ff00ff", player, cameraContainer || gameContainer));
   }
 }
 
@@ -653,7 +647,8 @@ async function restartGame() {
   clearObstaclesPhysics(obstacles);
   obstacles.length = 0;
 
-  cleanupParticles();
+  cleanupParticles(particles);
+  particles.length = 0;
 
   if (progressFill) progressFill.style.width = "0%";
   if (progressText) progressText.textContent = "0%";
@@ -820,5 +815,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("All functions defined and listeners added");
 });
-
-export { gameContainer, playerElement as player, obstacles, particles };
