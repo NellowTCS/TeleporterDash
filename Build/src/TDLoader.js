@@ -105,7 +105,7 @@ GameState.setState({
 // Helper to create numeric player object and ensure element exists
 function createPlayerModel(existingElement) {
   const el = createPlayerElement(existingElement);
-  const initialY = CONSTANTS.GROUND_HEIGHT || 50;
+  const initialY = 50;
   const p = {
     x: PLAYER_X,
     y: initialY,
@@ -418,8 +418,8 @@ function updateGame() {
   const prevBottom = currentBottom; // store previous bottom for tunneling checks
   let newBottom = currentBottom - newVelocity * deltaTime;
 
-  if (newBottom <= CONSTANTS.GROUND_HEIGHT) {
-    newBottom = CONSTANTS.GROUND_HEIGHT;
+  if (newBottom <= 50) {
+    newBottom = 50;
     GameState.setState({
       isJumping: false,
       doubleJumpAvailable: true,
@@ -634,7 +634,7 @@ async function restartGame() {
 
   // Reset player world model
   player.x = PLAYER_X;
-  player.y = CONSTANTS.GROUND_HEIGHT || 50;
+  player.y = 50;
   player.prevY = undefined;
   player.rotation = 0;
   renderPlayer(player);
