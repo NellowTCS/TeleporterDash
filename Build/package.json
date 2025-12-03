@@ -30,6 +30,6 @@
     "@vite-pwa/assets-generator": "^1.0.2",
     "cloc": "^2.6.0-cloc",
     "prettier": "^3.6.2",
-    "vite": "^7.1.7"
+    "vite": "^7.2.6"
   }
 }

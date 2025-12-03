@@ -1,11 +1,11 @@
 import { GameState } from "../Utilities/gameState";
 import { AudioManager } from "../Utilities/audioManager";
-import { toggleGameState } from "../TDLoader";
 
 const jumpForce = -800; // Initial upward velocity when jumping (pixels/second)
 let jumpBufferTime = 0; // milliseconds
 let lastJumpPressTime = 0;
 let touchJumpDelay = 400; // milliseconds
+let pauseHandler = null;
 
 /**
  * Configures control scheme based on user selection
@@ -15,9 +15,6 @@ function setupControls(method) {
   // Remove all existing event listeners first
   document.removeEventListener("keydown", handleSpaceJump);
   document.removeEventListener("mousedown", handleMouseJump);
-  document.removeEventListener("keydown", (e) => {
-    if (e.code === "Space") jump();
-  });
 
   // Apply new control scheme
   if (method === "space") {
@@ -144,9 +141,15 @@ document.addEventListener("mousedown", handleMouseJump);
 // Toggle pause with P key
 document.addEventListener("keydown", (e) => {
   if (e.code === "KeyP") {
-    toggleGameState("pause");
+    if (typeof pauseHandler === "function") {
+      pauseHandler();
+    }
   }
 });
+
+function registerPauseHandler(handler) {
+  pauseHandler = typeof handler === "function" ? handler : null;
+}
 
 document.addEventListener(
   "touchstart",
@@ -171,4 +174,5 @@ export {
   initializeTouchControls,
   handleMouseJump,
   handleSpaceJump,
+  registerPauseHandler,
 };
