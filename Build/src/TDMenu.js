@@ -270,7 +270,7 @@ async function updateLevelDisplay() {
       if (!window.onlineLevels || !Array.isArray(window.onlineLevels)) {
         throw new Error("No online levels data available");
       }
-      
+
       if (
         currentLevelIndex < 0 ||
         // @ts-ignore

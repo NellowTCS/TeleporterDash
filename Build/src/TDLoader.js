@@ -5,7 +5,10 @@ import { DatabaseManager } from "./Utilities/databaseManager.js";
 import { DOMManager } from "./Utilities/domManager.js";
 import { showLoadingError } from "./Utilities/notificationManager.js";
 import { GameController } from "./TDEngine/gameController.js";
-import { setupControls, registerPauseHandler } from "./TDEngine/inputManager.js";
+import {
+  setupControls,
+  registerPauseHandler,
+} from "./TDEngine/inputManager.js";
 import { AudioManager } from "./Utilities/audioManager.js";
 import { GameState } from "./Utilities/gameState.js";
 
@@ -62,7 +65,9 @@ function attachGlobalHandlers() {
 
   const restartFromPauseBtn = document.getElementById("restartFromPauseBtn");
   if (restartFromPauseBtn) {
-    restartFromPauseBtn.addEventListener("click", () => window.location.reload());
+    restartFromPauseBtn.addEventListener("click", () =>
+      window.location.reload(),
+    );
   }
 
   const pauseButton = document.getElementById("pauseButton");
@@ -100,25 +105,31 @@ async function initializeLevelUI() {
 
   if (controlMethodSelect) {
     // @ts-ignore
-    controlMethodSelect.value = SettingsManager.current.controlMethod || "keyboard";
+    controlMethodSelect.value =
+      SettingsManager.current.controlMethod || "keyboard";
   }
 
   if (practiceModeCheckbox) {
     // @ts-ignore
     practiceModeCheckbox.checked = SettingsManager.current.practiceMode;
-    GameState.setState({ isPracticeMode: SettingsManager.current.practiceMode });
+    GameState.setState({
+      isPracticeMode: SettingsManager.current.practiceMode,
+    });
   }
 
   if (autoRestartCheckbox) {
     // @ts-ignore
     autoRestartCheckbox.checked = SettingsManager.current.autoRestartEnabled;
-    autoRestartCheckbox.addEventListener("change", function handleAutoRestartChange() {
-      // @ts-ignore
-      const enabled = this.checked;
-      SettingsManager.current.autoRestartEnabled = enabled;
-      SettingsManager.save();
-      controller?.setAutoRestart(enabled);
-    });
+    autoRestartCheckbox.addEventListener(
+      "change",
+      function handleAutoRestartChange() {
+        // @ts-ignore
+        const enabled = this.checked;
+        SettingsManager.current.autoRestartEnabled = enabled;
+        SettingsManager.save();
+        controller?.setAutoRestart(enabled);
+      },
+    );
   }
 
   if (volumeSlider) {
@@ -144,55 +155,58 @@ async function initializeLevelUI() {
   }
 
   if (practiceModeCheckbox) {
-    practiceModeCheckbox.addEventListener("change", async function handlePracticeToggle() {
-      // @ts-ignore
-      const practiceMode = this.checked;
-      GameState.setState({ isPracticeMode: practiceMode });
-      SettingsManager.current.practiceMode = practiceMode;
-      SettingsManager.save();
-
-      if (gameSpeedSelect) {
+    practiceModeCheckbox.addEventListener(
+      "change",
+      async function handlePracticeToggle() {
         // @ts-ignore
-        gameSpeedSelect.disabled = !practiceMode;
-        if (!practiceMode) {
-          GameState.setState({ gameSpeed: 4 });
-          // @ts-ignore
-          gameSpeedSelect.value = "1";
-          SettingsManager.current.gameSpeed = 4;
-          SettingsManager.save();
-        } else {
-          const newSpeed = SettingsManager.current.gameSpeed || 4;
-          GameState.setState({ gameSpeed: newSpeed });
-          // @ts-ignore
-          gameSpeedSelect.value = (newSpeed / 4).toString();
-        }
-      }
+        const practiceMode = this.checked;
+        GameState.setState({ isPracticeMode: practiceMode });
+        SettingsManager.current.practiceMode = practiceMode;
+        SettingsManager.save();
 
-      const state = GameState.getState();
-      if (
-        state.isLevelStarted &&
-        !state.isPaused &&
-        !state.isGameOver &&
-        !state.isLevelComplete
-      ) {
-        try {
-          const musicToPlay = practiceMode
-            ? AudioManager.practiceMusic
-            : AudioManager.backgroundMusic;
-          const musicToPause = practiceMode
-            ? AudioManager.backgroundMusic
-            : AudioManager.practiceMusic;
-          await AudioManager.switchTracks(musicToPlay, musicToPause);
-        } catch (error) {
-          console.error("Error switching music tracks:", error);
+        if (gameSpeedSelect) {
+          // @ts-ignore
+          gameSpeedSelect.disabled = !practiceMode;
+          if (!practiceMode) {
+            GameState.setState({ gameSpeed: 4 });
+            // @ts-ignore
+            gameSpeedSelect.value = "1";
+            SettingsManager.current.gameSpeed = 4;
+            SettingsManager.save();
+          } else {
+            const newSpeed = SettingsManager.current.gameSpeed || 4;
+            GameState.setState({ gameSpeed: newSpeed });
+            // @ts-ignore
+            gameSpeedSelect.value = (newSpeed / 4).toString();
+          }
         }
-      } else {
-        await Promise.all([
-          AudioManager.pause(AudioManager.backgroundMusic),
-          AudioManager.pause(AudioManager.practiceMusic),
-        ]);
-      }
-    });
+
+        const state = GameState.getState();
+        if (
+          state.isLevelStarted &&
+          !state.isPaused &&
+          !state.isGameOver &&
+          !state.isLevelComplete
+        ) {
+          try {
+            const musicToPlay = practiceMode
+              ? AudioManager.practiceMusic
+              : AudioManager.backgroundMusic;
+            const musicToPause = practiceMode
+              ? AudioManager.backgroundMusic
+              : AudioManager.practiceMusic;
+            await AudioManager.switchTracks(musicToPlay, musicToPause);
+          } catch (error) {
+            console.error("Error switching music tracks:", error);
+          }
+        } else {
+          await Promise.all([
+            AudioManager.pause(AudioManager.backgroundMusic),
+            AudioManager.pause(AudioManager.practiceMusic),
+          ]);
+        }
+      },
+    );
   }
 
   if (gameSpeedSelect) {
@@ -219,13 +233,16 @@ async function initializeLevelUI() {
   }
 
   if (controlMethodSelect) {
-    controlMethodSelect.addEventListener("change", function handleControlChange() {
-      // @ts-ignore
-      const method = this.value;
-      SettingsManager.current.controlMethod = method;
-      SettingsManager.save();
-      setupControls(method);
-    });
+    controlMethodSelect.addEventListener(
+      "change",
+      function handleControlChange() {
+        // @ts-ignore
+        const method = this.value;
+        SettingsManager.current.controlMethod = method;
+        SettingsManager.save();
+        setupControls(method);
+      },
+    );
   }
 
   if (startLevelBtn) {

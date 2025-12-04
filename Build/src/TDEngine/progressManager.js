@@ -14,7 +14,7 @@ let playerIndicator = null;
 let cachedIndicatorHeight = 0;
 
 function initProgressElements() {
-  if (! progressText) {
+  if (!progressText) {
     progressText = DOMManager.getElement("#progressText");
     progressFill = DOMManager.getElement("#progressFill");
     heightIndicator = DOMManager.getElement("#heightIndicator");
@@ -32,13 +32,13 @@ function initProgressElements() {
  */
 function updateProgress() {
   const state = GameState.getState();
-  if (! state.levelMatrix || state.levelMatrix.length === 0) return;
+  if (!state.levelMatrix || state.levelMatrix.length === 0) return;
 
   const currentTime = Date.now();
   if (currentTime - lastProgressUpdate < progressUpdateInterval) return;
 
   initProgressElements();
-  if (! progressText || !progressFill) return;
+  if (!progressText || !progressFill) return;
 
   if (totalColumns === 0) {
     totalColumns = state.levelMatrix[0].length;
@@ -56,12 +56,12 @@ function updateProgress() {
       : clampedProgress;
 
   progressText.textContent = `${finalProgress}%`;
-  progressFill.style. width = `${finalProgress}%`;
+  progressFill.style.width = `${finalProgress}%`;
 
   if (finalProgress > 75) {
     progressFill.style.background = "linear-gradient(90deg, #00ff00, #4287f5)";
   } else if (finalProgress > 50) {
-    progressFill.style. background = "linear-gradient(90deg, #ffff00, #00ff00)";
+    progressFill.style.background = "linear-gradient(90deg, #ffff00, #00ff00)";
   } else if (finalProgress > 25) {
     progressFill.style.background = "linear-gradient(90deg, #ffa500, #ffff00)";
   }

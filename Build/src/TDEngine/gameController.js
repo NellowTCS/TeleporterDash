@@ -1,7 +1,10 @@
 import { GameState } from "../Utilities/gameState.js";
 import { AudioManager } from "../Utilities/audioManager.js";
 import { ScoreManager } from "./scoreManager.js";
-import { updateBackgroundColor, resetColorCache } from "../Utilities/colorManager.js";
+import {
+  updateBackgroundColor,
+  resetColorCache,
+} from "../Utilities/colorManager.js";
 import {
   checkCollisionWorld,
   handlePlatformCollisionWorld,
@@ -22,6 +25,7 @@ import {
   setCamera,
   removeElement,
   resetRenderCache,
+  presentFrame,
 } from "./renderEngine.js";
 import { CONSTANTS } from "../Utilities/constants.js";
 
@@ -33,6 +37,7 @@ const MAX_DELTA_TIME = 1 / 30;
 const CAMERA_FOLLOW_THRESHOLD = 50;
 const MAX_CAMERA_SPEED = 20;
 const DIMENSION_UPDATE_INTERVAL = 500;
+const CAMERA_TOP_PADDING = 90;
 
 export class GameController {
   constructor({
@@ -364,9 +369,7 @@ export class GameController {
 
   #handleTeleporterCollision(obstacle) {
     const rotation =
-      typeof obstacle.rotation === "number"
-        ? obstacle.rotation
-        : parseInt(obstacle.element?.getAttribute("data-rotation") || "0", 10);
+      typeof obstacle.rotation === "number" ? obstacle.rotation : 0;
 
     if (rotation === 90) {
       const dx = -120;
@@ -389,7 +392,9 @@ export class GameController {
     const container = this.cameraContainer || this.gameContainer;
     this.particles.push(...createParticles("#ff00ff", this.player, container));
     setTimeout(() => {
-      this.particles.push(...createParticles("#ff00ff", this.player, container));
+      this.particles.push(
+        ...createParticles("#ff00ff", this.player, container),
+      );
     }, 100);
   }
 
@@ -400,7 +405,11 @@ export class GameController {
       this.player.prevY = undefined;
       GameState.setState({ playerVelocity: 0, rotation: 0 });
       this.particles.push(
-        ...createParticles("#ff00ff", this.player, this.cameraContainer || this.gameContainer),
+        ...createParticles(
+          "#ff00ff",
+          this.player,
+          this.cameraContainer || this.gameContainer,
+        ),
       );
       return;
     }
@@ -421,7 +430,11 @@ export class GameController {
     }
 
     this.particles.push(
-      ...createParticles("#ff0000", this.player, this.cameraContainer || this.gameContainer),
+      ...createParticles(
+        "#ff0000",
+        this.player,
+        this.cameraContainer || this.gameContainer,
+      ),
     );
 
     if (this.autoRestartEnabled) {
@@ -586,7 +599,11 @@ export class GameController {
 
   #updateCamera() {
     const containerHeight = this.cachedContainerHeight;
-    const targetCameraY = Math.max(0, this.player.y - containerHeight / 2);
+    const effectiveHalfHeight = Math.max(
+      1,
+      containerHeight / 2 - CAMERA_TOP_PADDING,
+    );
+    const targetCameraY = Math.max(0, this.player.y - effectiveHalfHeight);
     const cameraDistance = targetCameraY - this.cameraOffsetY;
 
     if (Math.abs(cameraDistance) > CAMERA_FOLLOW_THRESHOLD) {
@@ -651,6 +668,7 @@ export class GameController {
     renderPlayer(this.player);
     renderObstacles(this.obstacles);
     this.#updateCamera();
+    presentFrame();
 
     this.animationFrameId = requestAnimationFrame(this.#updateGame);
   };

@@ -22,7 +22,9 @@
   },
   "homepage": "https://github.com/TeleporterDash/TeleporterDash#readme",
   "dependencies": {
+    "@pixi/graphics": "^7.4.3",
     "jszip": "^3.10.1",
+    "pixi.js": "^8.14.3",
     "vanilla-toast": "^0.5.0",
     "vite-plugin-pwa": "^1.1.0"
   },

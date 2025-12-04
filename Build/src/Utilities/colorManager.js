@@ -16,8 +16,8 @@ function getGameContainer() {
 }
 
 function getPlayerElement() {
-  if (! cachedPlayerElement) {
-    cachedPlayerElement = document. getElementById("player");
+  if (!cachedPlayerElement) {
+    cachedPlayerElement = document.getElementById("player");
   }
   return cachedPlayerElement;
 }
@@ -31,10 +31,10 @@ function updateBackgroundColor() {
   const state = GameState.getState();
 
   if (
-    ! state.levelMatrix ||
-    ! state.levelMatrix. length ||
-    ! state.levelColorRow ||
-    !state.levelColorRow. length
+    !state.levelMatrix ||
+    !state.levelMatrix.length ||
+    !state.levelColorRow ||
+    !state.levelColorRow.length
   ) {
     return;
   }
@@ -57,7 +57,7 @@ function updateBackgroundColor() {
     const currentColor = COLOR_MAP[currentCode] || "#000000";
     const nextColor = COLOR_MAP[nextCode] || "#000000";
 
-    if (! currentColor || !nextColor) {
+    if (!currentColor || !nextColor) {
       console.error("Invalid color codes:", currentCode, nextCode);
       return;
     }
@@ -79,7 +79,7 @@ function updateBackgroundColor() {
     const rowSpacing = 45;
     const playerElement = getPlayerElement();
     const playerX = playerElement
-      ?  parseInt(playerElement.style.left) || 100
+      ? parseInt(playerElement.style.left) || 100
       : 100;
     const factor = (playerX % rowSpacing) / rowSpacing;
     const newColor = interpolateColor(
@@ -88,7 +88,7 @@ function updateBackgroundColor() {
       factor,
     );
 
-    if (newColor && newColor. length === 7 && newColor !== lastAppliedColor) {
+    if (newColor && newColor.length === 7 && newColor !== lastAppliedColor) {
       gameContainer.style.backgroundColor = newColor;
       lastAppliedColor = newColor;
     }
@@ -99,32 +99,32 @@ function updateBackgroundColor() {
 
 function interpolateColor(color1, color2, factor) {
   if (
-    ! color1 ||
+    !color1 ||
     !color2 ||
     typeof color1 !== "string" ||
     typeof color2 !== "string"
   ) {
     return COLOR_MAP["0"];
   }
-  factor = Math.max(0, Math. min(1, factor));
+  factor = Math.max(0, Math.min(1, factor));
 
   const r1 = parseInt(color1.slice(1, 3), 16);
   const g1 = parseInt(color1.slice(3, 5), 16);
   const b1 = parseInt(color1.slice(5, 7), 16);
 
   const r2 = parseInt(color2.slice(1, 3), 16);
-  const g2 = parseInt(color2. slice(3, 5), 16);
+  const g2 = parseInt(color2.slice(3, 5), 16);
   const b2 = parseInt(color2.slice(5, 7), 16);
 
   const ease = factor * factor * (3 - 2 * factor);
 
   const r = Math.round(r1 + (r2 - r1) * ease);
-  const g = Math. round(g1 + (g2 - g1) * ease);
+  const g = Math.round(g1 + (g2 - g1) * ease);
   const b = Math.round(b1 + (b2 - b1) * ease);
 
   return `#${r.toString(16).padStart(2, "0")}${g
     .toString(16)
-    .padStart(2, "0")}${b.toString(16). padStart(2, "0")}`;
+    .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
 function makeColorDarker(color) {
@@ -137,7 +137,7 @@ function makeColorDarker(color) {
     const g = parseInt(color.slice(3, 5), 16) || 0;
     const b = parseInt(color.slice(5, 7), 16) || 0;
 
-    const darkerR = Math.max(0, Math. floor(r * 0.6));
+    const darkerR = Math.max(0, Math.floor(r * 0.6));
     const darkerG = Math.max(0, Math.floor(g * 0.6));
     const darkerB = Math.max(0, Math.floor(b * 0.6));
 
