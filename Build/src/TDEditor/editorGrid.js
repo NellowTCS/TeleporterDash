@@ -2,9 +2,31 @@ import { COLOR_MAP } from "../Utilities/constants.js";
 import { GameState } from "../Utilities/gameState.js";
 import { DOMManager } from "../Utilities/domManager.js";
 import { PerformanceMonitor } from "./performanceMonitor.js";
+import { blockRegistry, parseCellValue } from "../TDEngine/blockRegistry.js";
 
 // Note: EditOperations import is lazy-loaded to avoid circular dependency
 let EditOperations = null;
+
+function applyBlockStyling(cell, parsedValue) {
+  const definition =
+    blockRegistry.getDefinitionByMatrixValue(parsedValue.matrixValue) ||
+    blockRegistry.getDefinition("empty");
+  const blockType = definition?.type || "empty";
+  const editorConfig = blockRegistry.getEditorConfig(blockType) || {};
+  const className = editorConfig.className || blockType;
+
+  if (className) {
+    cell.classList.add(className);
+  }
+
+  if (parsedValue.rotation) {
+    cell.style.transform = `rotate(${parsedValue.rotation}deg)`;
+  } else {
+    cell.style.transform = "none";
+  }
+
+  cell.style.backgroundColor = parsedValue.color || "";
+}
 
 // ===== Grid ====
 // // Update Grid Size
@@ -72,39 +94,8 @@ export function createGrid(grid, onCellChangeCallback = null) {
       } else {
         // Handle game cells
         cell.className = "cell";
-
-        if (value) {
-          const properties =
-            typeof value === "string" ? value.split("/") : [value.toString()];
-          const blockType = parseInt(properties[0]);
-
-          // Add base class based on block type
-          switch (blockType) {
-            case 1:
-              cell.classList.add("platform");
-              break;
-            case 2:
-              cell.classList.add("spike");
-              break;
-            case 3:
-              cell.classList.add("teleporter");
-              break;
-            case 4:
-              cell.classList.add("finish");
-              break;
-          }
-
-          // Process additional properties
-          properties.forEach((prop) => {
-            if (prop.startsWith("@")) {
-              const rotation = parseInt(prop.substring(1));
-              cell.style.transform = `rotate(${rotation}deg)`;
-            } else if (prop.startsWith("-")) {
-              const colorCode = parseInt(prop);
-              cell.style.backgroundColor = COLOR_MAP[colorCode] || COLOR_MAP[0];
-            }
-          });
-        }
+        const parsedBlock = parseCellValue(value);
+        applyBlockStyling(cell, parsedBlock);
       }
 
       cell.addEventListener("mousedown", (e) => {
@@ -197,11 +188,10 @@ export function handleCellClick(e, onChangeCallback = null) {
         GameState.current.editor.selectedBlockColor !== 0) &&
       currentTool !== "0"
     ) {
-      blockValue += `/${
-        currentTool === "c"
+      blockValue += `/${currentTool === "c"
           ? GameState.current.editor.selectedColor
           : GameState.current.editor.selectedBlockColor
-      }`;
+        }`;
     }
 
     updateCell(row, col, blockValue, onChangeCallback);
@@ -213,70 +203,27 @@ export function updateGridVisuals() {
   const cells = document.querySelectorAll(".cell");
   cells.forEach((cell) => {
     // @ts-ignore
-    if (!cell.dataset.row || !cell.dataset.col) return;
+    if (!cell.dataset.row || !cell.dataset.col) {
+      return;
+    }
 
     // @ts-ignore
-    const row = parseInt(cell.dataset.row);
+    const row = parseInt(cell.dataset.row, 10);
     // @ts-ignore
-    const col = parseInt(cell.dataset.col);
+    const col = parseInt(cell.dataset.col, 10);
 
     if (row === 0) {
-      // Handle color row
-      const colorValue = GameState.current.editor.levelMatrix[0][col] || 0; // Default to 0 if empty
+      const colorValue = GameState.current.editor.levelMatrix[0][col] || 0;
       cell.className = "cell color-row";
       // @ts-ignore
       cell.style.backgroundColor = COLOR_MAP[colorValue];
-    } else {
-      // Handle game cells
-      const value = GameState.current.editor.levelMatrix[row][col];
-      cell.className = "cell";
-
-      if (value) {
-        const properties =
-          typeof value === "string" ? value.split("/") : [value.toString()];
-        const blockType = parseInt(properties[0]);
-
-        // Reset styles
-        // @ts-ignore
-        cell.style.transform = "none";
-        // @ts-ignore
-        cell.style.backgroundColor = "";
-
-        // Add base class based on block type
-        switch (blockType) {
-          case 0:
-            cell.classList.add("empty");
-            break;
-          case 1:
-            cell.classList.add("platform");
-            break;
-          case 2:
-            cell.classList.add("spike");
-            break;
-          case 3:
-            cell.classList.add("teleporter");
-            break;
-          case 4:
-            cell.classList.add("finish");
-            break;
-        }
-
-        // Process additional properties
-        properties.forEach((prop) => {
-          if (prop.startsWith("@")) {
-            const rotation = parseInt(prop.substring(1));
-            // @ts-ignore
-            cell.style.transform = `rotate(${rotation}deg)`;
-          } else if (prop.startsWith("-")) {
-            const colorCode = parseInt(prop);
-            // @ts-ignore
-            cell.style.backgroundColor = COLOR_MAP[colorCode] || COLOR_MAP[0];
-          }
-        });
-      } else {
-        cell.classList.add("empty");
-      }
+      return;
     }
+
+    const value = GameState.current.editor.levelMatrix[row][col];
+    cell.className = "cell";
+    const parsedBlock = parseCellValue(value);
+    applyBlockStyling(cell, parsedBlock);
   });
 }
 

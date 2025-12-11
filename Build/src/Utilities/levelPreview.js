@@ -1,3 +1,5 @@
+import { blockRegistry, parseCellValue } from "../TDEngine/blockRegistry.js";
+
 // ===== Level Preview System =====
 const TILE_COLORS = {
   0: "#000000",
@@ -16,28 +18,45 @@ const TILE_COLORS = {
   "-9": "#3a86ff",
 };
 
-function parseBlockProperties(block) {
-  if (typeof block !== "string") {
-    return isNaN(block) || block === null
-      ? { type: 0, color: null, rotation: 0 }
-      : { type: block, color: null, rotation: 0 };
-  }
-  const props = block.split("/");
-  const type = parseInt(props[0]);
-  if (isNaN(type)) return { type: 0, color: null, rotation: 0 };
-  let color = null;
-  let rotation = 0;
-  props.slice(1).forEach((prop) => {
-    if (prop.startsWith("-")) {
-      color = TILE_COLORS[prop] || null;
-    } else if (prop.startsWith("@")) {
-      rotation = parseInt(prop.substring(1)) || 0;
-    }
-  });
-  return { type, color, rotation };
+const DEFAULT_PREVIEW_COLOR = "#ffffff";
+
+function getPreviewTarget(blockValue) {
+  const parsed = parseCellValue(blockValue);
+  const definition =
+    blockRegistry.getDefinitionByMatrixValue(parsed.matrixValue) ||
+    blockRegistry.getDefinition("empty");
+  return { parsed, definition };
 }
 
-function drawSpike(ctx, x, y, size, color = "#ff0000", rotation = 0) {
+function renderBlockPreview(ctx, blockValue, { x, y, size }) {
+  const { parsed, definition } = getPreviewTarget(blockValue);
+  if (!definition || definition.type === "empty") {
+    return;
+  }
+
+  const renderer =
+    blockRegistry.getPreviewRenderer(definition.type) || drawDefaultPreview;
+  const color =
+    parsed.color ||
+    definition.defaultColor ||
+    TILE_COLORS[String(parsed.matrixValue)] ||
+    DEFAULT_PREVIEW_COLOR;
+
+  renderer(ctx, {
+    x,
+    y,
+    size,
+    color,
+    rotation: parsed.rotation || 0,
+  });
+}
+
+function drawDefaultPreview(ctx, { x, y, size, color }) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size, size);
+}
+
+function drawSpike(ctx, { x, y, size, color = "#ff0000", rotation = 0 }) {
   ctx.save();
   ctx.translate(x + size / 2, y + size / 2);
   ctx.rotate((rotation * Math.PI) / 180);
@@ -54,7 +73,7 @@ function drawSpike(ctx, x, y, size, color = "#ff0000", rotation = 0) {
   ctx.restore();
 }
 
-function drawTeleporter(ctx, x, y, size, color = "#00ff00") {
+function drawTeleporter(ctx, { x, y, size, color = "#00ff00" }) {
   const radius = size / 3;
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, radius, 0, Math.PI * 2);
@@ -65,10 +84,15 @@ function drawTeleporter(ctx, x, y, size, color = "#00ff00") {
   ctx.stroke();
 }
 
-function drawFinishLine(ctx, x, y, size) {
-  ctx.fillStyle = "#00ff00";
+function drawFinishLine(ctx, { x, y, size, color = "#00ff00" }) {
+  ctx.fillStyle = color;
   ctx.fillRect(x, y, size / 4, size);
 }
+
+blockRegistry.defineBlock("platform", { previewRenderer: drawDefaultPreview });
+blockRegistry.defineBlock("spike", { previewRenderer: drawSpike });
+blockRegistry.defineBlock("teleporter", { previewRenderer: drawTeleporter });
+blockRegistry.defineBlock("finish", { previewRenderer: drawFinishLine });
 
 function generateLevelPreview(matrix) {
   const canvas = document.createElement("canvas");
@@ -87,27 +111,9 @@ function generateLevelPreview(matrix) {
   for (let row = 0; row < matrix.length; row++) {
     for (let col = 0; col < matrix[row].length; col++) {
       const block = matrix[row][col];
-      const { type, color, rotation } = parseBlockProperties(block);
       const x = col * tileSize;
       const y = row * tileSize;
-
-      if (type === 0) continue; // Skip empty tiles
-
-      switch (type) {
-        case 1: // Platform
-          ctx.fillStyle = color || TILE_COLORS["1"];
-          ctx.fillRect(x, y, tileSize, tileSize);
-          break;
-        case 2: // Spike
-          drawSpike(ctx, x, y, tileSize, color || TILE_COLORS["2"], rotation);
-          break;
-        case 3: // Teleporter
-          drawTeleporter(ctx, x, y, tileSize, color || TILE_COLORS["3"]);
-          break;
-        case 4: // Finish line
-          drawFinishLine(ctx, x, y, tileSize);
-          break;
-      }
+      renderBlockPreview(ctx, block, { x, y, size: tileSize });
     }
   }
 
@@ -150,30 +156,13 @@ function drawLevelPreview(canvas, level) {
   for (let row = 0; row < Math.min(matrix.length, previewHeight); row++) {
     for (let col = 0; col < Math.min(matrix[row].length, previewWidth); col++) {
       const block = matrix[row][col];
-      const { type, color, rotation } = parseBlockProperties(block);
       const x = col * tileSize;
       const y = row * tileSize + offsetY;
-
-      if (type === 0) continue; // Skip empty tiles
-
-      switch (type) {
-        case 1: // Platform
-          ctx.fillStyle = color || TILE_COLORS["1"];
-          ctx.fillRect(x, y, tileSize, tileSize);
-          break;
-        case 2: // Spike
-          drawSpike(ctx, x, y, tileSize, color || TILE_COLORS["2"], rotation);
-          break;
-        case 3: // Teleporter
-          drawTeleporter(ctx, x, y, tileSize, color || TILE_COLORS["3"]);
-          break;
-        case 4: // Finish line
-          drawFinishLine(ctx, x, y, tileSize);
-          break;
-      }
+      renderBlockPreview(ctx, block, { x, y, size: tileSize });
     }
   }
 }
 
 // Make function global
+//@ts-ignore
 window.drawLevelPreview = drawLevelPreview;

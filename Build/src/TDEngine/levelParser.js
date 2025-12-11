@@ -1,40 +1,12 @@
 import { COLOR_MAP, CONSTANTS } from "../Utilities/constants.js";
 import { DOMManager } from "../Utilities/domManager.js";
 import { GameState } from "../Utilities/gameState.js";
-import { blockRegistry } from "./blockRegistry.js";
 import { createObstacleElement } from "./renderEngine.js";
-
-/*
- Helper to parse matrix properties encoded as strings (e.g. "1/-2/@90")
-*/
-function parseBlockType(type) {
-  let blockType = type;
-  let blockColor = null;
-  let blockRotation = 0;
-
-  if (typeof type === "string") {
-    const properties = type.split("/");
-    blockType = parseInt(properties[0], 10);
-    for (let i = 1; i < properties.length; i++) {
-      const prop = properties[i];
-      if (prop.startsWith("-")) {
-        blockColor = COLOR_MAP[parseInt(prop, 10)];
-      } else if (prop.startsWith("@")) {
-        blockRotation = parseInt(prop.substring(1), 10);
-      }
-    }
-  }
-
-  return {
-    type: Number.isFinite(blockType) ? blockType : 0,
-    color: blockColor,
-    rotation: blockRotation,
-  };
-}
+import { blockRegistry, parseCellValue } from "./blockRegistry.js";
 
 function createObstacleFromMatrix(type, row, spawnX) {
-  const parsed = parseBlockType(type);
-  const blockType = parsed.type;
+  const parsed = parseCellValue(type);
+  const blockType = parsed.matrixValue;
   const blockColor = parsed.color;
   const blockRotation = parsed.rotation;
 
