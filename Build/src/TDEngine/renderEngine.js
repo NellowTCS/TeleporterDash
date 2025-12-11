@@ -1,4 +1,5 @@
 import { Application, Container, Graphics, Sprite, Texture } from "pixi.js";
+import { blockRegistry } from "./blockRegistry.js";
 
 const DEG_TO_RAD = Math.PI / 180;
 const DEFAULT_PLAYER_COLOR = 0x1ce92d;
@@ -199,12 +200,12 @@ function createObstacleElement(obstacleObj) {
   display.removeChildren();
   display.eventMode = "none";
 
-  const width = Math.round(
-    obstacleObj.width || _defaultWidth(obstacleObj.type),
-  );
-  const height = Math.round(
-    obstacleObj.height || _defaultHeight(obstacleObj.type),
-  );
+  const defaultSize = blockRegistry.getDefaultSize(obstacleObj.type, {
+    cellWidth: obstacleObj.meta?.cellWidth,
+    rowSpacing: obstacleObj.meta?.rowSpacing,
+  });
+  const width = Math.round(obstacleObj.width || defaultSize.width);
+  const height = Math.round(obstacleObj.height || defaultSize.height);
 
   _drawObstacleGraphic(display, obstacleObj, width, height);
 
@@ -219,56 +220,43 @@ function createObstacleElement(obstacleObj) {
 function _drawObstacleGraphic(container, obstacle, width, height) {
   const type = obstacle.type || "empty";
   container.pivot.set(0, 0);
-  const anchor = _getAnchorForType(type);
+  const anchor = blockRegistry.getAnchor(type);
   container.__tdAnchor = anchor;
   container.__tdSize = { width, height };
 
-  switch (type) {
-    case "finish":
-      _drawFinish(
-        container,
-        obstacle.color || `#${DEFAULT_FINISH_COLOR.toString(16)}`,
-        width,
-        height,
-      );
-      break;
-    case "spike":
-      _drawSpike(container, obstacle.color || null, width, height);
-      break;
-    case "teleporter":
-      _drawTeleporter(container, obstacle, width, height);
-      break;
-    case "platform":
-      _drawPlatform(container, obstacle.color || null, width, height);
-      break;
-    default:
-      _drawEmpty(container, width, height);
-      break;
-  }
+  const renderer =
+    blockRegistry.getRenderer(type) ||
+    blockRegistry.getRenderer("empty") ||
+    _drawEmpty;
+
+  renderer(container, obstacle, width, height);
 }
 
-function _drawPlatform(container, color, width, height) {
+function _drawPlatform(container, obstacle, width, height) {
+  const color = obstacle?.color || blockRegistry.getDefaultColor(obstacle.type);
   const g = new Graphics();
   g.rect(-width / 2, -height / 2, width, height);
   g.fill({ color: _colorToNumber(color, DEFAULT_PLATFORM_COLOR) });
   container.addChild(g);
 }
 
-function _drawEmpty(container, width, height) {
+function _drawEmpty(container, obstacle, width, height) {
   const g = new Graphics();
   g.rect(-width / 2, -height / 2, width, height);
   g.stroke({ width: 1, color: 0xffffff, alpha: 0.05 });
   container.addChild(g);
 }
 
-function _drawFinish(container, color, width, height) {
+function _drawFinish(container, obstacle, width, height) {
+  const color = obstacle?.color || blockRegistry.getDefaultColor(obstacle.type);
   const g = new Graphics();
   g.rect(-width / 2, -height / 2, width, height);
   g.fill({ color: _colorToNumber(color, DEFAULT_FINISH_COLOR) });
   container.addChild(g);
 }
 
-function _drawSpike(container, color, width, height) {
+function _drawSpike(container, obstacle, width, height) {
+  const color = obstacle?.color || blockRegistry.getDefaultColor(obstacle.type);
   const g = new Graphics();
   g.moveTo(-width / 2, 0);
   g.lineTo(width / 2, 0);
@@ -320,6 +308,12 @@ function _drawTeleporter(container, obstacle, width, height) {
   arrow.fill({ color: 0xffffff, alpha: 0.85 });
   container.addChild(arrow);
 }
+
+blockRegistry.registerRenderer("empty", _drawEmpty);
+blockRegistry.registerRenderer("platform", _drawPlatform);
+blockRegistry.registerRenderer("spike", _drawSpike);
+blockRegistry.registerRenderer("teleporter", _drawTeleporter);
+blockRegistry.registerRenderer("finish", _drawFinish);
 
 function renderPlayer(playerObj) {
   if (!playerObj) return;
@@ -384,19 +378,21 @@ function renderObstacles(obstaclesArray) {
     const display = obstacle.element;
     if (!display) continue;
 
+    const defaultSize = blockRegistry.getDefaultSize(obstacle.type, {
+      cellWidth: obstacle.meta?.cellWidth,
+      rowSpacing: obstacle.meta?.rowSpacing,
+    });
     const width = Math.round(
-      obstacle.width || display.__tdSize?.width || _defaultWidth(obstacle.type),
+      obstacle.width || display.__tdSize?.width || defaultSize.width,
     );
     const height = Math.round(
-      obstacle.height ||
-        display.__tdSize?.height ||
-        _defaultHeight(obstacle.type),
+      obstacle.height || display.__tdSize?.height || defaultSize.height,
     );
-    const anchor = display.__tdAnchor || _getAnchorForType(obstacle.type);
+    const anchor = display.__tdAnchor || blockRegistry.getAnchor(obstacle.type);
     const worldX = obstacle.x || 0;
     const worldY = obstacle.y || 0;
     const stageX = worldX + width * anchor.x;
-      const stageY = _viewportHeight - (worldY + height * anchor.y);
+    const stageY = _viewportHeight - (worldY + height * anchor.y);
     const rotation =
       typeof obstacle.rotation === "number" ? obstacle.rotation : 0;
 
@@ -547,40 +543,6 @@ function _drawCanvasRoundedRect(ctx, x, y, width, height, radius) {
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
-}
-
-function _getAnchorForType(type) {
-  if (type === "spike") {
-    return { x: 0.5, y: 0 };
-  }
-  return { x: 0.5, y: 0.5 };
-}
-
-function _defaultWidth(type) {
-  switch (type) {
-    case "platform":
-      return 45;
-    case "teleporter":
-      return 30;
-    case "finish":
-      return 18;
-    default:
-      return 30;
-  }
-}
-
-function _defaultHeight(type) {
-  switch (type) {
-    case "teleporter":
-      return 60;
-    case "finish":
-      return 350;
-    case "platform":
-    case "empty":
-      return 45;
-    default:
-      return 30;
-  }
 }
 
 export {

@@ -1,6 +1,7 @@
 import { COLOR_MAP, CONSTANTS } from "../Utilities/constants.js";
 import { DOMManager } from "../Utilities/domManager.js";
 import { GameState } from "../Utilities/gameState.js";
+import { blockRegistry } from "./blockRegistry.js";
 import { createObstacleElement } from "./renderEngine.js";
 
 /*
@@ -57,38 +58,24 @@ function createObstacleFromMatrix(type, row, spawnX) {
       : 45;
 
   // Build the obstacle prototype (used for pooling or new object)
+  const definition =
+    blockRegistry.getDefinitionByMatrixValue(blockType) ||
+    blockRegistry.getDefinition("empty");
+  const resolvedType = definition?.type || "empty";
+  const defaultSize = blockRegistry.getDefaultSize(resolvedType, {
+    cellWidth,
+    rowSpacing,
+  });
+
   const proto = {
     x: worldX,
     y: worldY,
-    width: cellWidth,
-    height: rowSpacing,
-    type: "empty",
+    width: defaultSize.width,
+    height: defaultSize.height,
+    type: resolvedType,
     rotation: Number.isFinite(blockRotation) ? blockRotation : 0,
-    color: blockColor || null,
+    color: blockColor || definition?.defaultColor || null,
   };
-
-  if (blockType === 4) {
-    proto.type = "finish";
-    proto.width = Math.max(10, Math.round(cellWidth * 0.4));
-    proto.height = 350;
-    proto.color = blockColor || proto.color || "#00ff00";
-  } else if (blockType === 2) {
-    proto.type = "spike";
-    proto.width = cellWidth - 12;
-    proto.height = 30;
-  } else if (blockType === 3) {
-    proto.type = "teleporter";
-    proto.width = Math.round(cellWidth * 0.66);
-    proto.height = 60;
-  } else if (blockType === 1) {
-    proto.type = "platform";
-    proto.width = cellWidth + 3;
-    proto.height = rowSpacing;
-  } else {
-    proto.type = "empty";
-    proto.width = cellWidth;
-    proto.height = rowSpacing;
-  }
 
   // Try to reuse an object from the pool
   // No pooled object available — create a fresh one
@@ -101,7 +88,12 @@ function createObstacleFromMatrix(type, row, spawnX) {
     rotation: proto.rotation || 0,
     color: proto.color || null,
     element: null,
-    meta: { originalType: blockType },
+    meta: {
+      originalType: blockType,
+      cellWidth,
+      rowSpacing,
+      definitionKey: resolvedType,
+    },
   };
 
   obstacleObj.element =

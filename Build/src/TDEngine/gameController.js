@@ -28,6 +28,7 @@ import {
   presentFrame,
 } from "./renderEngine.js";
 import { CONSTANTS } from "../Utilities/constants.js";
+import { blockRegistry } from "./blockRegistry.js";
 
 const PLAYER_X = 100;
 const PLAYER_WIDTH = 30;
@@ -38,6 +39,8 @@ const CAMERA_FOLLOW_THRESHOLD = 50;
 const MAX_CAMERA_SPEED = 20;
 const DIMENSION_UPDATE_INTERVAL = 500;
 const CAMERA_TOP_PADDING = 90;
+const PLAYER_COLLISION_PADDING = 100;
+const OBSTACLE_CULL_X = -100;
 
 export class GameController {
   constructor({
@@ -76,6 +79,7 @@ export class GameController {
     renderInit(gameContainer, cameraContainer);
     this.player = this.#createPlayerModel(playerElement);
     this.#initializeGameState();
+    this.blockRegistry = blockRegistry;
   }
 
   setAutoRestart(enabled) {
@@ -232,6 +236,16 @@ export class GameController {
   toggleMute() {
     AudioManager.toggleMute();
     return AudioManager.isMuted;
+  }
+
+  registerBlockType(type, definitionOrHandler) {
+    if (typeof definitionOrHandler === "function") {
+      this.blockRegistry.defineBlock(type, {
+        collisionHandler: definitionOrHandler,
+      });
+      return;
+    }
+    this.blockRegistry.defineBlock(type, definitionOrHandler || {});
   }
 
   cleanup() {
@@ -543,58 +557,79 @@ export class GameController {
   }
 
   #handleObstacleCollisions(state, frameSpeed) {
-    const playerLeft = this.player.x - 100;
-    const playerRight = this.player.x + 100;
+    const collisionWindow = this.#getPlayerCollisionWindow();
 
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
       const obstacle = this.obstacles[i];
-      obstacle.x -= frameSpeed;
 
-      if (obstacle.x < -100) {
-        if (obstacle.element) {
-          removeElement(obstacle.element);
-        }
-        this.obstacles.splice(i, 1);
+      if (this.#advanceObstacle(obstacle, frameSpeed)) {
+        this.#removeObstacleAt(i);
         continue;
       }
 
-      if (obstacle.x <= playerLeft || obstacle.x >= playerRight) {
+      if (!this.#isObstacleWithinPlayerWindow(obstacle, collisionWindow)) {
         continue;
       }
 
-      const collision = checkCollisionWorld(this.player, obstacle);
-      if (!collision) {
+      const hasCollided = checkCollisionWorld(this.player, obstacle);
+      if (!hasCollided) {
         continue;
       }
 
-      if (obstacle.type === "finish") {
-        this.#handleLevelComplete();
+      const hasTerminated = this.#resolveBlockCollision(obstacle, state);
+      if (hasTerminated) {
         return true;
-      }
-
-      if (obstacle.type === "spike" && !state.isPracticeMode) {
-        this.#handleGameOver();
-        return true;
-      }
-
-      if (obstacle.type === "teleporter") {
-        this.#handleTeleporterCollision(obstacle);
-        continue;
-      }
-
-      if (obstacle.type === "platform") {
-        const platformCollision = handlePlatformCollisionWorld(
-          this.player,
-          obstacle,
-        );
-        if (platformCollision === "death" && !state.isPracticeMode) {
-          this.#handleGameOver();
-          return true;
-        }
       }
     }
 
     return false;
+  }
+
+  #getPlayerCollisionWindow() {
+    return {
+      left: this.player.x - PLAYER_COLLISION_PADDING,
+      right: this.player.x + PLAYER_COLLISION_PADDING,
+    };
+  }
+
+  #advanceObstacle(obstacle, frameSpeed) {
+    obstacle.x -= frameSpeed;
+    return obstacle.x < OBSTACLE_CULL_X;
+  }
+
+  #removeObstacleAt(index) {
+    const obstacle = this.obstacles[index];
+    if (obstacle?.element) {
+      removeElement(obstacle.element);
+    }
+    this.obstacles.splice(index, 1);
+  }
+
+  #isObstacleWithinPlayerWindow(obstacle, bounds) {
+    return obstacle.x > bounds.left && obstacle.x < bounds.right;
+  }
+
+  #resolveBlockCollision(obstacle, state) {
+    return this.blockRegistry.handleCollision(
+      obstacle?.type,
+      this.#createBlockContext(obstacle, state),
+    );
+  }
+
+  #createBlockContext(obstacle, state) {
+    return {
+      obstacle,
+      state,
+      player: this.player,
+      utils: {
+        triggerLevelComplete: () => this.#handleLevelComplete(),
+        triggerGameOver: () => this.#handleGameOver(),
+        handleTeleporterCollision: () =>
+          this.#handleTeleporterCollision(obstacle),
+        resolvePlatformCollision: () =>
+          handlePlatformCollisionWorld(this.player, obstacle),
+      },
+    };
   }
 
   #updateCamera() {

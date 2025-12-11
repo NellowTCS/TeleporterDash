@@ -1,5 +1,6 @@
 import { GameState } from "../Utilities/gameState.js";
 import { removeElement } from "./renderEngine.js";
+import { blockRegistry } from "./blockRegistry.js";
 
 function clearObstacles(obstacles) {
   for (let i = 0; i < obstacles.length; i++) {
@@ -40,35 +41,16 @@ function checkCollisionWorld(playerObj, obstacleObj, tolerance = 0) {
 
   _rectB.x = obstacleObj.x;
   _rectB.y = obstacleObj.y;
-  _rectB.width =
-    obstacleObj.width || (obstacleObj.type === "platform" ? 45 : 30);
-  _rectB.height =
-    obstacleObj.height ||
-    (obstacleObj.type === "teleporter"
-      ? 60
-      : obstacleObj.type === "finish"
-        ? 350
-        : 30);
 
-  // Spike orientation: shrink area conservatively toward tip if rotation specified
-  if (
-    obstacleObj.type === "spike" &&
-    typeof obstacleObj.rotation === "number"
-  ) {
-    const rot = obstacleObj.rotation;
-    const shrink = Math.max(0, Math.min(6, Math.round(_rectB.width * 0.12)));
-    if (rot === 90) {
-      _rectB.x += shrink;
-      _rectB.width = Math.max(1, _rectB.width - shrink);
-    } else if (rot === 270) {
-      _rectB.width = Math.max(1, _rectB.width - shrink);
-    } else if (rot === 180) {
-      _rectB.y += shrink;
-      _rectB.height = Math.max(1, _rectB.height - shrink);
-    } else {
-      _rectB.height = Math.max(1, _rectB.height - shrink);
-    }
-  }
+  const defaultSize = blockRegistry.getDefaultSize(obstacleObj.type, {
+    cellWidth: obstacleObj.meta?.cellWidth,
+    rowSpacing: obstacleObj.meta?.rowSpacing,
+  });
+
+  _rectB.width = obstacleObj.width || defaultSize.width;
+  _rectB.height = obstacleObj.height || defaultSize.height;
+
+  blockRegistry.applyCollisionAdjuster(obstacleObj.type, _rectB, obstacleObj);
 
   return rectsIntersectWorld(_rectA, _rectB, tolerance);
 }
