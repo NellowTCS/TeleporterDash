@@ -404,10 +404,11 @@ export class GameController {
 
     GameState.setState({ playerVelocity: 0 });
     const container = this.cameraContainer || this.gameContainer;
-    this.particles.push(...createParticles("#ff00ff", this.player, container));
+    const teleportColor = blockRegistry.getParticleColor("teleporter") || "#ff00ff";
+    this.particles.push(...createParticles(teleportColor, this.player, container));
     setTimeout(() => {
       this.particles.push(
-        ...createParticles("#ff00ff", this.player, container),
+        ...createParticles(teleportColor, this.player, container),
       );
     }, 100);
   }
@@ -418,9 +419,10 @@ export class GameController {
       this.player.y = 50;
       this.player.prevY = undefined;
       GameState.setState({ playerVelocity: 0, rotation: 0 });
+      const practiceColor = blockRegistry.getParticleColor("teleporter") || "#ff00ff";
       this.particles.push(
         ...createParticles(
-          "#ff00ff",
+          practiceColor,
           this.player,
           this.cameraContainer || this.gameContainer,
         ),
@@ -443,9 +445,10 @@ export class GameController {
       AudioManager.deathSound.play();
     }
 
+    const deathColor = blockRegistry.getParticleColor("spike") || "#ff0000";
     this.particles.push(
       ...createParticles(
-        "#ff0000",
+        deathColor,
         this.player,
         this.cameraContainer || this.gameContainer,
       ),

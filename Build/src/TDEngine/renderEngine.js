@@ -3,9 +3,6 @@ import { blockRegistry } from "./blockRegistry.js";
 
 const DEG_TO_RAD = Math.PI / 180;
 const DEFAULT_PLAYER_COLOR = 0x1ce92d;
-const DEFAULT_PLATFORM_COLOR = 0x4287f5;
-const DEFAULT_FINISH_COLOR = 0x00ff00;
-const DEFAULT_SPIKE_COLOR = 0xff0000;
 const DEFAULT_TELEPORTER_GRADIENT = ["#ff00ff", "#8c00ff"];
 
 let _app = null;
@@ -233,10 +230,11 @@ function _drawObstacleGraphic(container, obstacle, width, height) {
 }
 
 function _drawPlatform(container, obstacle, width, height) {
-  const color = obstacle?.color || blockRegistry.getDefaultColor(obstacle.type);
+  const defaultColor = blockRegistry.getDefaultColor("platform") || "#4287f5";
+  const color = obstacle?.color || defaultColor;
   const g = new Graphics();
   g.rect(-width / 2, -height / 2, width, height);
-  g.fill({ color: _colorToNumber(color, DEFAULT_PLATFORM_COLOR) });
+  g.fill({ color: _colorToNumber(color, 0x4287f5) });
   container.addChild(g);
 }
 
@@ -248,21 +246,23 @@ function _drawEmpty(container, obstacle, width, height) {
 }
 
 function _drawFinish(container, obstacle, width, height) {
-  const color = obstacle?.color || blockRegistry.getDefaultColor(obstacle.type);
+  const defaultColor = blockRegistry.getDefaultColor("finish") || "#00ff00";
+  const color = obstacle?.color || defaultColor;
   const g = new Graphics();
   g.rect(-width / 2, -height / 2, width, height);
-  g.fill({ color: _colorToNumber(color, DEFAULT_FINISH_COLOR) });
+  g.fill({ color: _colorToNumber(color, 0x00ff00) });
   container.addChild(g);
 }
 
 function _drawSpike(container, obstacle, width, height) {
-  const color = obstacle?.color || blockRegistry.getDefaultColor(obstacle.type);
+  const defaultColor = blockRegistry.getDefaultColor("spike") || "#ff0000";
+  const color = obstacle?.color || defaultColor;
   const g = new Graphics();
   g.moveTo(-width / 2, 0);
   g.lineTo(width / 2, 0);
   g.lineTo(0, -height);
   g.closePath();
-  g.fill({ color: _colorToNumber(color, DEFAULT_SPIKE_COLOR) });
+  g.fill({ color: _colorToNumber(color, 0xff0000) });
   container.addChild(g);
 }
 

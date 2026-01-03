@@ -1,6 +1,11 @@
 import { COLOR_MAP } from "../Utilities/constants.js";
 
-// Central registry for all block metadata (collision, rendering, defaults, etc.)
+/**
+ * BlockRegistry - Single Source of Truth for all block definitions
+ *
+ * Centralizes: types, matrixValues, sizes, anchors, colors, collision handling,
+ * game rendering, editor styling, and preview rendering.
+ */
 
 const DEFAULT_ANCHOR = { x: 0.5, y: 0.5 };
 
@@ -52,6 +57,10 @@ export class BlockRegistry {
 
     if (typeof definition.defaultColor === "string") {
       next.defaultColor = definition.defaultColor;
+    }
+
+    if (typeof definition.particleColor === "string") {
+      next.particleColor = definition.particleColor;
     }
 
     if (definition.editor) {
@@ -114,6 +123,15 @@ export class BlockRegistry {
     return this.definitions.get(type)?.defaultColor || null;
   }
 
+  /**
+   * Get the particle effect color for a block type.
+   * @param {string} type
+   * @returns {string|null}
+   */
+  getParticleColor(type) {
+    return this.definitions.get(type)?.particleColor || null;
+  }
+
   getEditorConfig(type) {
     return this.definitions.get(type)?.editor;
   }
@@ -159,6 +177,55 @@ export class BlockRegistry {
     if (typeof adjuster === "function") {
       adjuster(rect, obstacle);
     }
+  }
+
+  /**
+   * Get all registered block types.
+   * @returns {string[]}
+   */
+  getAllTypes() {
+    return Array.from(this.definitions.keys());
+  }
+
+  /**
+   * Get all non-empty block types (for iteration in editors/previews).
+   * @returns {string[]}
+   */
+  getVisibleTypes() {
+    return this.getAllTypes().filter((type) => type !== "empty");
+  }
+
+  /**
+   * Check if a type is registered.
+   * @param {string} type
+   * @returns {boolean}
+   */
+  hasType(type) {
+    return this.definitions.has(type);
+  }
+
+  /**
+   * Get type name from matrix value.
+   * @param {number} matrixValue
+   * @returns {string|undefined}
+   */
+  getTypeByMatrixValue(matrixValue) {
+    return this.matrixLookup.get(matrixValue);
+  }
+
+  /**
+   * Resolve a color code to actual color string using COLOR_MAP.
+   * Falls back to block's default color or provided fallback.
+   * @param {number|null} colorCode
+   * @param {string} type
+   * @param {string} [fallback]
+   * @returns {string}
+   */
+  resolveColor(colorCode, type, fallback = "#ffffff") {
+    if (typeof colorCode === "number" && COLOR_MAP[colorCode]) {
+      return COLOR_MAP[colorCode];
+    }
+    return this.getDefaultColor(type) || fallback;
   }
 }
 
@@ -222,24 +289,71 @@ function createSpikeAdjuster() {
   };
 }
 
+// ============================================================================
+// Preview Renderers (Canvas 2D context for thumbnails)
+// ============================================================================
+
+function previewRect(ctx, { x, y, size, color }) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size, size);
+}
+
+function previewSpike(ctx, { x, y, size, color, rotation = 0 }) {
+  ctx.save();
+  ctx.translate(x + size / 2, y + size / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.beginPath();
+  ctx.moveTo(-size / 2, size / 2);
+  ctx.lineTo(0, -size / 2);
+  ctx.lineTo(size / 2, size / 2);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+function previewTeleporter(ctx, { x, y, size, color }) {
+  const radius = size / 3;
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function previewFinish(ctx, { x, y, size, color }) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size / 4, size);
+}
+
+// ============================================================================
+// Default Block Definitions
+// ============================================================================
+
 export function registerDefaultBlocks(registry = blockRegistry) {
   registry.defineBlock("empty", {
     matrixValue: 0,
+    defaultColor: "#000000",
     defaults: {
       width: ({ cellWidth = 45 }) => cellWidth,
       height: ({ rowSpacing = 45 }) => rowSpacing,
     },
     editor: { className: "empty" },
+    previewRenderer: null, // Empty blocks don't render in preview
   });
 
   registry.defineBlock("platform", {
     matrixValue: 1,
     defaultColor: "#4287f5",
+    particleColor: "#4287f5",
     defaults: {
       width: ({ cellWidth = 45 }) => cellWidth + 3,
       height: ({ rowSpacing = 45 }) => rowSpacing,
     },
     editor: { className: "platform" },
+    previewRenderer: previewRect,
     collisionHandler: ({ state, utils }) => {
       const collisionResponse = utils.resolvePlatformCollision();
       if (collisionResponse === "death" && !state.isPracticeMode) {
@@ -253,12 +367,14 @@ export function registerDefaultBlocks(registry = blockRegistry) {
   registry.defineBlock("spike", {
     matrixValue: 2,
     defaultColor: "#ff0000",
+    particleColor: "#ff0000",
     anchor: { x: 0.5, y: 0 },
     defaults: {
       width: ({ cellWidth = 45 }) => Math.max(8, cellWidth - 12),
       height: () => 30,
     },
     editor: { className: "spike" },
+    previewRenderer: previewSpike,
     collisionHandler: ({ state, utils }) => {
       if (state.isPracticeMode) {
         return false;
@@ -272,11 +388,13 @@ export function registerDefaultBlocks(registry = blockRegistry) {
   registry.defineBlock("teleporter", {
     matrixValue: 3,
     defaultColor: "#ff00ff",
+    particleColor: "#ff00ff",
     defaults: {
       width: ({ cellWidth = 45 }) => Math.round(cellWidth * 0.66),
       height: () => 60,
     },
     editor: { className: "teleporter" },
+    previewRenderer: previewTeleporter,
     collisionHandler: ({ utils }) => {
       utils.handleTeleporterCollision();
       return false;
@@ -286,11 +404,13 @@ export function registerDefaultBlocks(registry = blockRegistry) {
   registry.defineBlock("finish", {
     matrixValue: 4,
     defaultColor: "#00ff00",
+    particleColor: "#00ff00",
     defaults: {
       width: ({ cellWidth = 45 }) => Math.max(10, Math.round(cellWidth * 0.4)),
       height: () => 350,
     },
     editor: { className: "finish" },
+    previewRenderer: previewFinish,
     collisionHandler: ({ utils }) => {
       utils.triggerLevelComplete();
       return true;

@@ -5,174 +5,264 @@
     <title>Teleporter Dash Level Creator</title>
     <link rel="stylesheet" href="./styles/global.css" />
     <link rel="stylesheet" href="./styles/TDEditor.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>
       eruda.init();
     </script>
   </head>
   <body>
-    <h1 class="header">Teleporter Dash Level Creator</h1>
-    <div id="currentDraftIndicator">Current Draft: <span></span></div>
+    <!-- Top Header Bar -->
+    <header class="editor-header">
+      <div class="header-left">
+        <button id="backToMenuBtn" class="header-btn" title="Back to Menu (Esc)">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h1 class="editor-title">Level Creator</h1>
+      </div>
+      <div class="header-center">
+        <div class="level-info-bar">
+          <input type="text" id="levelName" placeholder="Untitled Level" class="level-name-input" />
+          <span class="separator">|</span>
+          <span class="author-label">by</span>
+          <input type="text" id="authorName" placeholder="Author" class="author-input" />
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="currentDraftIndicator"><i class="fas fa-file-alt"></i> <span>No draft</span></div>
+        <button id="saveDraftBtn" class="header-btn primary" title="Save Draft (Ctrl+S)">
+          <i class="fas fa-save"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Toolbar -->
+    <div class="main-toolbar">
+      <!-- Tool Selection Group -->
+      <div class="toolbar-group tools-group">
+        <span class="toolbar-label">Tools</span>
+        <div class="toolbar-buttons">
+          <button class="tool-btn active" data-type="0" title="Empty / Eraser (2)">
+            <i class="fas fa-eraser"></i>
+          </button>
+          <button class="tool-btn" data-type="1" title="Platform (3)">
+            <i class="fas fa-square"></i>
+          </button>
+          <button class="tool-btn spike-btn" data-type="2" title="Spike (4)">
+            <i class="fas fa-caret-up"></i>
+          </button>
+          <button class="tool-btn teleporter-btn" data-type="3" title="Teleporter (5)">
+            <i class="fas fa-bolt"></i>
+          </button>
+          <button class="tool-btn finish-btn" data-type="4" title="Finish Line (6)">
+            <i class="fas fa-flag-checkered"></i>
+          </button>
+          <button class="tool-btn color-btn" data-type="c" title="Color Tool (7)">
+            <i class="fas fa-palette"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Rotation Group -->
+      <div class="toolbar-group rotation-group" id="rotationGroup" style="display: none">
+        <span class="toolbar-label">Rotation</span>
+        <div class="toolbar-buttons rotation-controls">
+          <button id="rotateLeft" class="tool-btn" title="Rotate Left (←)">
+            <i class="fas fa-undo"></i>
+          </button>
+          <span id="rotationDisplay" class="rotation-value">0°</span>
+          <button id="rotateRight" class="tool-btn" title="Rotate Right (→)">
+            <i class="fas fa-redo"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Color Picker Group -->
+      <div class="toolbar-group color-picker-group" id="colorPickerGroup" style="display: none">
+        <span class="toolbar-label">Colors</span>
+        <div class="color-selectors">
+          <div class="color-select-wrapper">
+            <label>Section:</label>
+            <select id="colorPicker" class="color-select"></select>
+          </div>
+          <div class="color-select-wrapper">
+            <label>Block:</label>
+            <select id="blockColorPicker" class="color-select"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Edit Operations Group -->
+      <div class="toolbar-group edit-group">
+        <span class="toolbar-label">Edit</span>
+        <div class="toolbar-buttons">
+          <button id="undoBtn" class="tool-btn" title="Undo (Ctrl+Z)">
+            <i class="fas fa-undo-alt"></i>
+          </button>
+          <button id="redoBtn" class="tool-btn" title="Redo (Ctrl+Y)">
+            <i class="fas fa-redo-alt"></i>
+          </button>
+          <button id="copyBtn" class="tool-btn" title="Copy Selection (Ctrl+C)">
+            <i class="fas fa-copy"></i>
+          </button>
+          <button id="pasteBtn" class="tool-btn" title="Paste (Ctrl+V)">
+            <i class="fas fa-paste"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- View Controls Group -->
+      <div class="toolbar-group view-group">
+        <span class="toolbar-label">Zoom</span>
+        <div class="toolbar-buttons zoom-controls">
+          <button id="gridZoomOut" class="tool-btn" title="Zoom Out (Ctrl+-)">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <span id="gridZoomLevel" class="zoom-value">100%</span>
+          <button id="gridZoomIn" class="tool-btn" title="Zoom In (Ctrl++)">
+            <i class="fas fa-search-plus"></i>
+          </button>
+          <button id="gridZoomReset" class="tool-btn small" title="Reset Zoom (Ctrl+0)">
+            <i class="fas fa-compress-arrows-alt"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-spacer"></div>
+
+      <!-- Action Buttons -->
+      <div class="toolbar-group actions-group">
+        <button id="testBtn" class="action-btn test-btn" title="Test Level (F5)">
+          <i class="fas fa-play"></i><span class="btn-text">Test</span>
+        </button>
+        <button id="exportBtn" class="action-btn export-btn" title="Export Level">
+          <i class="fas fa-download"></i><span class="btn-text">Export</span>
+        </button>
+        <button id="importBtn" class="action-btn import-btn" title="Import Level">
+          <i class="fas fa-upload"></i><span class="btn-text">Import</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
     <div id="mainContainer">
       <div id="leftPanel">
         <div id="gridContainer">
           <div id="grid"></div>
         </div>
-        <h2 class="section-header">Drafts</h2>
-        <div id="draftsList"></div>
+        
+        <!-- Minimap -->
+        <div id="minimapContainer">
+          <canvas id="minimapCanvas" width="200" height="60"></canvas>
+          <div id="minimapViewport"></div>
+        </div>
       </div>
+      
       <div id="rightPanel">
         <div id="editorControls">
-          <div class="control-group">
-            <label for="levelName">Level Name:</label>
-            <input type="text" id="levelName" placeholder="Enter level name" />
-          </div>
-          <div class="control-group">
-            <label for="authorName">Author:</label>
-            <input
-              type="text"
-              id="authorName"
-              placeholder="Enter author name"
-            />
-          </div>
-          <div class="control-group">
-            <label for="difficulty">Difficulty:</label>
-            <select id="difficulty">
-              <option value="Easy">Easy</option>
-              <option value="Normal">Normal</option>
-              <option value="Hard">Hard</option>
-              <option value="Harder">Harder</option>
-              <option value="Expert">Expert</option>
-              <option value="Insane">Insane</option>
-              <option value="Extreme">Extreme</option>
-              <option value="Easy Demon">Easy Demon</option>
-              <option value="Medium Demon">Medium Demon</option>
-              <option value="Super Demon">Super Demon</option>
-            </select>
-          </div>
-          <div class="control-group">
-            <label for="musicSelect">Background Music:</label>
-            <select id="musicSelect">
-              <option value="level1.ogg">Stereo Madness</option>
-              <option value="level2.ogg">Back on Track</option>
-              <option value="level3.ogg">Polargeist</option>
-              <option value="level4.ogg">Dry Out</option>
-              <option value="level5.ogg">Base After Base</option>
-              <option value="custom">Custom Music...</option>
-            </select>
-            <input
-              type="file"
-              id="customMusicInput"
-              accept="audio/*"
-              style="display: none"
-            />
-            <button id="previewMusic">Preview Music</button>
-          </div>
+          <!-- Level Settings Section -->
+          <div class="panel-section">
+            <h3 class="section-title"><i class="fas fa-cog"></i> Level Settings</h3>
+            
+            <div class="control-group">
+              <label for="difficulty"><i class="fas fa-chart-line"></i> Difficulty</label>
+              <select id="difficulty">
+                <option value="Easy">Easy</option>
+                <option value="Normal">Normal</option>
+                <option value="Hard">Hard</option>
+                <option value="Harder">Harder</option>
+                <option value="Expert">Expert</option>
+                <option value="Insane">Insane</option>
+                <option value="Extreme">Extreme</option>
+                <option value="Easy Demon">Easy Demon</option>
+                <option value="Medium Demon">Medium Demon</option>
+                <option value="Super Demon">Super Demon</option>
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label>Grid Size:</label>
-            <div style="display: flex; gap: 10px; align-items: center">
-              <div>
-                <label for="gridWidth">Width:</label>
-                <input
-                  type="number"
-                  id="gridWidth"
-                  value="100"
-                  style="width: 70px"
-                />
+            <div class="control-group">
+              <label for="musicSelect"><i class="fas fa-music"></i> Background Music</label>
+              <div class="music-control">
+                <select id="musicSelect">
+                  <option value="level1.ogg">Stereo Madness</option>
+                  <option value="level2.ogg">Back on Track</option>
+                  <option value="level3.ogg">Polargeist</option>
+                  <option value="level4.ogg">Dry Out</option>
+                  <option value="level5.ogg">Base After Base</option>
+                  <option value="custom">Custom Music...</option>
+                </select>
+                <button id="previewMusic" class="icon-btn" title="Preview Music">
+                  <i class="fas fa-play"></i>
+                </button>
               </div>
-              <div>
-                <label for="gridHeight">Height:</label>
-                <input
-                  type="number"
-                  id="gridHeight"
-                  value="12"
-                  style="width: 70px"
-                />
+              <input type="file" id="customMusicInput" accept="audio/*" style="display: none" />
+            </div>
+          </div>
+
+          <!-- Grid Settings Section -->
+          <div class="panel-section">
+            <h3 class="section-title"><i class="fas fa-th"></i> Grid Settings</h3>
+            
+            <div class="control-group">
+              <label><i class="fas fa-arrows-alt-h"></i> Dimensions</label>
+              <div class="dimension-inputs">
+                <div class="dimension-input">
+                  <span>W:</span>
+                  <input type="number" id="gridWidth" value="100" min="10" max="500" />
+                </div>
+                <span class="dimension-x">×</span>
+                <div class="dimension-input">
+                  <span>H:</span>
+                  <input type="number" id="gridHeight" value="12" min="5" max="50" />
+                </div>
+                <button id="updateGridSize" class="icon-btn primary" title="Update Grid Size">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
               </div>
-              <button
-                id="updateGridSize"
-                style="
-                  padding: 5px 10px;
-                  background: #4285f4;
-                  border: none;
-                  border-radius: 5px;
-                  color: white;
-                  cursor: pointer;
-                "
-              >
-                Update Grid
-              </button>
             </div>
           </div>
 
-          <div class="control-group">
-            <label>Grid Zoom:</label>
-            <div class="zoom-controls">
-              <button id="gridZoomOut" class="zoom-btn" title="Grid Zoom Out (Ctrl+-)">−</button>
-              <span id="gridZoomLevel">100%</span>
-              <button id="gridZoomIn" class="zoom-btn" title="Grid Zoom In (Ctrl++)">+</button>
-              <button id="gridZoomReset" class="zoom-reset-btn" title="Reset Grid Zoom">Reset</button>
-            </div>
+          <!-- Drafts Section -->
+          <div class="panel-section">
+            <h3 class="section-title"><i class="fas fa-folder-open"></i> Drafts</h3>
+            <div id="draftsList"></div>
           </div>
 
-          <div class="control-group">
-            <label>Edit:</label>
-            <div class="edit-controls">
-              <button id="undoBtn" class="edit-btn" title="Undo (Ctrl+Z)">↶</button>
-              <button id="redoBtn" class="edit-btn" title="Redo (Ctrl+Y)">↷</button>
-              <button id="copyBtn" class="edit-btn" title="Copy (Ctrl+C)">📋</button>
-              <button id="pasteBtn" class="edit-btn" title="Paste (Ctrl+V)">📄</button>
-              <span class="edit-hint">Use Empty tool + Shift+drag to select • Right-click for menu</span>
-            </div>
+          <!-- Danger Zone -->
+          <div class="panel-section danger-zone">
+            <h3 class="section-title"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
+            <button id="clearBtn" class="danger-btn">
+              <i class="fas fa-trash-alt"></i> Clear Grid
+            </button>
           </div>
-
-          <div class="control-group">
-            <label>Tools:</label>
-            <div class="tool-group">
-              <button class="tool active" data-type="0">Empty</button>
-              <button class="tool" data-type="1">Platform</button>
-              <button class="tool" data-type="2">Spike</button>
-              <button class="tool" data-type="3">Teleporter</button>
-              <button class="tool" data-type="4">Finish</button>
-              <button class="tool" data-type="c">Color</button>
-            </div>
-          </div>
-
-          <div
-            class="control-group"
-            id="colorPickerGroup"
-            style="display: none"
-          >
-            <label>Section Color:</label>
-            <select id="colorPicker"></select>
-            <br />
-            <label>Block Color:</label>
-            <select id="blockColorPicker"></select>
-          </div>
-
-          <div class="control-group" id="rotationGroup" style="display: none">
-            <label>Rotation:</label>
-            <div class="rotation-controls">
-              <button id="rotateLeft">↺</button>
-              <span id="rotationDisplay">0°</span>
-              <button id="rotateRight">↻</button>
-            </div>
-          </div>
-
-          <div class="action-group">
-            <button id="saveDraftBtn">Save Draft</button>
-            <button id="testBtn">Test Level</button>
-            <button id="exportBtn">Export Level</button>
-            <button id="importBtn">Import Level</button>
-            <button id="clearBtn">Clear Grid</button>
-            <button id="backToMenuBtn" onclick="window.location.href='./index.html'">Back to Menu</button>
-          </div>
-
-          <textarea id="importArea" style="display: none"></textarea>
         </div>
       </div>
     </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-left">
+        <span id="statusTool"><i class="fas fa-mouse-pointer"></i> Empty Tool</span>
+        <span class="status-divider">|</span>
+        <span id="statusPosition"><i class="fas fa-crosshairs"></i> Row: - Col: -</span>
+      </div>
+      <div class="status-center">
+        <span id="statusSelection" style="display: none"><i class="fas fa-vector-square"></i> Selection: 0×0</span>
+      </div>
+      <div class="status-right">
+        <span id="statusHint" class="status-hint">
+          <i class="fas fa-lightbulb"></i> Tip: Hold Shift + drag with Empty tool to select
+        </span>
+      </div>
+    </footer>
+
+    <textarea id="importArea" style="display: none"></textarea>
     <audio id="musicPreview" src="./Sound/Level Soundtracks/"></audio>
     <script type="module" src="./src/TDEditor.js"></script>
   </body>

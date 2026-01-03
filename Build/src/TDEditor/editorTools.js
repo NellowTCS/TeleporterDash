@@ -5,11 +5,23 @@ import { GameState } from "../Utilities/gameState.js";
 // Handle Rotation Display and Controls
 let tools, rotationGroup, rotateLeft, rotateRight, rotationDisplay;
 
+// Tool name mapping for status bar
+const TOOL_NAMES = {
+  "0": "Empty / Eraser",
+  "1": "Platform",
+  "2": "Spike",
+  "3": "Teleporter",
+  "4": "Finish Line",
+  "c": "Color Tool",
+  "select": "Selection"
+};
+
 function activateTool(button) {
   if (!button) return;
 
+  // Support both old .tool and new .tool-btn classes
   document
-    .querySelectorAll(".tool")
+    .querySelectorAll(".tool, .tool-btn")
     .forEach((t) => t.classList.remove("active"));
   button.classList.add("active");
 
@@ -22,7 +34,7 @@ function activateTool(button) {
 
   const colorPickerGroup = document.getElementById("colorPickerGroup");
   if (colorPickerGroup) {
-    colorPickerGroup.style.display = toolType === "c" ? "block" : "none";
+    colorPickerGroup.style.display = toolType === "c" ? "flex" : "none";
   }
 
   if (toolType === "c") {
@@ -39,18 +51,30 @@ function activateTool(button) {
 
   const isRotatable = ["2", "3"].includes(toolType);
   if (rotationGroup) {
-    rotationGroup.style.display = isRotatable ? "block" : "none";
+    rotationGroup.style.display = isRotatable ? "flex" : "none";
   }
 
   if (!isRotatable) {
     GameState.setEditorState({ currentRotation: 0 });
     updateRotationDisplay();
   }
+
+  // Update status bar
+  updateStatusBar(toolType);
+}
+
+function updateStatusBar(toolType) {
+  const statusTool = document.getElementById("statusTool");
+  if (statusTool) {
+    const toolName = TOOL_NAMES[toolType] || "Unknown";
+    statusTool.innerHTML = `<i class="fas fa-mouse-pointer"></i> ${toolName}`;
+  }
 }
 
 // Initialize elements when DOM is ready
 function initializeElements() {
-  tools = document.querySelectorAll(".tool");
+  // Support both old .tool and new .tool-btn classes
+  tools = document.querySelectorAll(".tool, .tool-btn[data-type]");
   rotationGroup = document.getElementById("rotationGroup");
   rotateLeft = document.getElementById("rotateLeft");
   rotateRight = document.getElementById("rotateRight");

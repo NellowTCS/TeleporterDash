@@ -19,6 +19,7 @@ class EditOperationsManager {
     this.contextMenu = null;
     this.maxUndoSteps = 50; // Increased from 20 for better user experience
     this.lastMousePosition = { row: 1, col: 0 }; // Track cursor position for pasting
+    this._updateSelectionStatusModule = null;
 
     this.initialize();
   }
@@ -28,6 +29,18 @@ class EditOperationsManager {
     this.setupEventListeners();
     this.createContextMenu();
     this.saveInitialState();
+  }
+
+  // Lazy load selection status updater
+  async updateSelectionStatus(width, height) {
+    if (!this._updateSelectionStatusModule) {
+      try {
+        this._updateSelectionStatusModule = await import("./editorEnhancements.js");
+      } catch {
+        return; // Enhancements not available
+      }
+    }
+    this._updateSelectionStatusModule.updateSelectionStatus(width, height);
   }
 
   // Save initial state when grid is created
@@ -153,6 +166,7 @@ class EditOperationsManager {
       !this.selection.end
     ) {
       this.clearSelection();
+      this.updateSelectionStatus(0, 0);
       return;
     }
 
@@ -163,6 +177,11 @@ class EditOperationsManager {
     const maxRow = Math.max(this.selection.start.row, this.selection.end.row);
     const minCol = Math.min(this.selection.start.col, this.selection.end.col);
     const maxCol = Math.max(this.selection.start.col, this.selection.end.col);
+
+    // Update status bar with selection size
+    const selWidth = maxCol - minCol + 1;
+    const selHeight = maxRow - minRow + 1;
+    this.updateSelectionStatus(selWidth, selHeight);
 
     document.querySelectorAll(".cell").forEach((cell) => {
       const row = parseInt(cell.getAttribute("data-row") || "0");

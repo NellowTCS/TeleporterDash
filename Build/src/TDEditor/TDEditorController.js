@@ -22,6 +22,9 @@ import { initializeColorPickers } from "./editorColorPicker.js";
 // Import tools initialization function
 import { initializeEditorTools } from "./editorTools.js";
 
+// Import UI enhancements
+import { initializeEnhancements, updateMinimap } from "./editorEnhancements.js";
+
 export class TDEditorController {
   constructor() {
     this.managers = {
@@ -84,6 +87,9 @@ export class TDEditorController {
 
       // Setup global functions for HTML onclick handlers
       this.setupGlobalFunctions();
+
+      // Initialize UI enhancements (minimap, status bar, etc.)
+      initializeEnhancements();
 
       const initTime = perfMonitor.endTimer("TDEditorInitialization", true);
       console.log(

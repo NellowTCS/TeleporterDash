@@ -241,4 +241,7 @@ export function updateCell(row, col, value, onChangeCallback = null) {
   GameState.setEditorState({ levelMatrix: newMatrix, hasUnsavedChanges: true });
   updateGridVisuals();
   if (onChangeCallback) onChangeCallback();
+  
+  // Trigger minimap update (lazy import to avoid circular dependency)
+  import("./editorEnhancements.js").then(({ updateMinimap }) => updateMinimap());
 }
